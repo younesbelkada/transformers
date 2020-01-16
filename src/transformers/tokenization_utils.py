@@ -1724,3 +1724,6 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
             return clean_text
         else:
             return text
+
+    def save_vocabulary(self, save_directory):
+        self._tokenizer.save(save_directory)
