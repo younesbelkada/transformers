@@ -17,8 +17,7 @@
 
 import logging
 
-from .tokenization_gpt2 import GPT2Tokenizer
-
+from .tokenization_gpt2 import GPT2Tokenizer, GPT2TokenizerFast
 
 logger = logging.getLogger(__name__)
 
@@ -154,3 +153,26 @@ class RobertaTokenizer(GPT2Tokenizer):
         if token_ids_1 is None:
             return len(cls + token_ids_0 + sep) * [0]
         return len(cls + token_ids_0 + sep + sep + token_ids_1 + sep) * [0]
+
+
+class RobertaTokenizerFast(GPT2TokenizerFast):
+    def __init__(
+            self,
+            vocab_file,
+            merges_file,
+            errors="replace",
+            bos_token="<s>",
+            eos_token="</s>",
+            sep_token="</s>",
+            cls_token="<s>",
+            unk_token="<unk>",
+            pad_token="<pad>",
+            mask_token="<mask>",
+            **kwargs
+    ):
+        kwargs['sep_token'] = sep_token
+        kwargs['cls_token'] = cls_token
+        super().__init__(
+            vocab_file, merges_file, unk_token, bos_token,
+            eos_token, pad_token, mask_token, True
+        )
