@@ -1615,7 +1615,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
                 )
             )
 
-        return encoding_dict
+        return {k: v if len(v) > 1 else v[0] for k, v in encoding_dict.items()}
 
     def _convert_token_to_id_with_added_voc(self, token):
         id = self._tokenizer.token_to_id(token)
