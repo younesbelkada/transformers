@@ -179,5 +179,43 @@ class RobertaTokenizerFast(GPT2TokenizerFast):
         kwargs['cls_token'] = cls_token
         super().__init__(
             vocab_file, merges_file, unk_token, bos_token,
-            eos_token, pad_token, mask_token, True
+            eos_token, pad_token, mask_token, True, **kwargs
+        )
+
+    def encode(
+            self,
+            text,
+            text_pair=None,
+            add_special_tokens=True,
+            max_length=None,
+            stride=0,
+            truncation_strategy="longest_first",
+            pad_to_max_length=False,
+            return_tensors=None,
+            return_token_type_ids=True,
+            return_attention_mask=True,
+            return_overflowing_tokens=False,
+            return_special_tokens_mask=False,
+            **kwargs
+    ):
+        text_ = [text] if isinstance(text, str) else text
+        text_pair_ = [text_pair] if isinstance(text_pair, str) else text_pair if text_pair is not None else None
+
+        text_ = ["{}{}{}".format(self.cls_token, t, self.eos_token) for t in text_]
+        text_pair_ = ["{}{}{}".format(self.cls_token, t, self.eos_token) for t in text_pair_] if text_pair_ else None
+
+        return super().encode(
+            text_,
+            text_pair_,
+            add_special_tokens,
+            max_length,
+            stride,
+            truncation_strategy,
+            pad_to_max_length,
+            return_tensors,
+            return_token_type_ids,
+            return_attention_mask,
+            return_overflowing_tokens,
+            return_special_tokens_mask,
+            **kwargs
         )

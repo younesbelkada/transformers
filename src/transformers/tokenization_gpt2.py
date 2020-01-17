@@ -271,5 +271,5 @@ class GPT2TokenizerFast(PreTrainedTokenizerFast):
 
         super().__init__(
             ByteLevelBPETokenizer(vocab_file, merges_file, add_prefix_space),
-            os_token=bos_token, eos_token=eos_token, unk_token=unk_token, **kwargs
+            bos_token=bos_token, eos_token=eos_token, unk_token=unk_token, **kwargs
         )
