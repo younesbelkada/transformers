@@ -23,6 +23,7 @@ import os
 import re
 from contextlib import contextmanager
 
+from sentencepiece import SentencePieceProcessor
 from tokenizers import Encoding
 from typing import List, Tuple, Dict
 
@@ -1727,3 +1728,34 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
 
     def save_vocabulary(self, save_directory):
         self._tokenizer.save(save_directory)
+
+
+class SentencePieceExtractor:
+    """
+    Extractor implementation for SentencePiece trained models.
+    https://github.com/google/sentencepiece
+    """
+
+    def __init__(self, model: str):
+        # Get SentencePiece
+        self.sp = SentencePieceProcessor()
+        self.sp.Load(model)
+
+    def extract(self) -> Tuple[Dict[str, int], List[Tuple]]:
+        from tqdm import trange, tqdm
+
+        sp = self.sp
+        vocab = {sp.id_to_piece(index): index for index in trange(sp.GetPieceSize())}
+
+        # Merges
+        merges = []
+        for piece_l in tqdm(vocab.keys(), total=sp.GetPieceSize()):
+            for piece_r in vocab.keys():
+                if piece_l != piece_r:
+                    merge = sp.PieceToId(f"{piece_l}{piece_r}")
+                    score = sp.GetScore(merge)
+
+                    if score != 0.:
+                        merges += [(piece_l, piece_r)]
+
+        return vocab, merges
