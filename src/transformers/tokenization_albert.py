@@ -17,11 +17,16 @@
 
 import logging
 import os
+from typing import Optional
+
 import unicodedata
 from shutil import copyfile
 
-from .tokenization_utils import PreTrainedTokenizer
+from tokenizers import SentencePieceBPETokenizer
+from tokenizers.normalizers import Sequence, NFKC, Lowercase
+from tokenizers.processors import BertProcessing
 
+from .tokenization_utils import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 logger = logging.getLogger(__name__)
 VOCAB_FILES_NAMES = {"vocab_file": "spiece.model"}
@@ -255,3 +260,62 @@ class AlbertTokenizer(PreTrainedTokenizer):
             copyfile(self.vocab_file, out_vocab_file)
 
         return (out_vocab_file,)
+
+
+class AlbertSentencePieceBPETokenizer(SentencePieceBPETokenizer):
+    def __init__(self,
+                 vocab_file: Optional[str]=None,
+                 merges_file: Optional[str]=None,
+                 unk_token: str="<unk>",
+                 sep_token: str="[SEP]",
+                 cls_token: str="[CLS]",
+                 replacement: str="▁",
+                 do_lowercase: bool=True,
+                 add_prefix_space: bool=True,
+                 dropout: Optional[float]=None):
+
+        super().__init__(vocab_file, merges_file, unk_token, replacement, add_prefix_space, dropout)
+        self._tokenizer.post_processor = BertProcessing.new(
+            (sep_token, self._tokenizer.token_to_id(sep_token)),
+            (cls_token, self._tokenizer.token_to_id(cls_token)),
+        )
+
+        if do_lowercase:
+            self._tokenizer.normalizer = Sequence.new([
+                NFKC.new(),
+                Lowercase.new()
+            ])
+
+
+class AlbertTokenizerFast(PreTrainedTokenizerFast):
+    vocab_files_names = VOCAB_FILES_NAMES
+    pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
+    max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
+
+    def __init__(
+        self,
+        vocab_file,
+        merges_file,
+        do_lower_case=True,
+        remove_space=True,
+        keep_accents=False,
+        bos_token="[CLS]",
+        eos_token="[SEP]",
+        unk_token="<unk>",
+        sep_token="[SEP]",
+        pad_token="<pad>",
+        cls_token="[CLS]",
+        mask_token="[MASK]",
+        **kwargs
+    ):
+        super().__init__(
+            AlbertSentencePieceBPETokenizer(vocab_file, merges_file, unk_token=unk_token, add_prefix_space=True),
+            bos_token=bos_token,
+            eos_token=eos_token,
+            unk_token=unk_token,
+            sep_token=sep_token,
+            pad_token=pad_token,
+            cls_token=cls_token,
+            mask_token=mask_token,
+            **kwargs,
+        )
