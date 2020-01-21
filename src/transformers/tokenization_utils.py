@@ -28,6 +28,7 @@ from tokenizers import Encoding
 from typing import List, Tuple, Dict
 
 from tokenizers.implementations import BaseTokenizer
+from tqdm import trange
 
 from .file_utils import cached_path, hf_bucket_url, is_remote_url, is_tf_available, is_torch_available
 
@@ -1755,7 +1756,52 @@ class SentencePieceExtractor:
                     merge = sp.PieceToId(f"{piece_l}{piece_r}")
                     score = sp.GetScore(merge)
 
-                    if score != 0.:
+                    if score != 0.0:
                         merges += [(piece_l, piece_r)]
 
+        return vocab, merges
+
+
+class YouTokenToMeExtractor:
+    """
+    Extractor implementation for YouTokenToMe trained models format.
+    Model are as follow:
+        vocab_size nb_merges
+        piece piece_id
+        ...(repeated vocab_size)
+        piece_id_left piece_id_right piece_id
+        ...(repeated nb merges)
+    """
+
+    def __init__(self, model: str):
+        self._model = model
+
+    def extract(self) -> Tuple[Dict[str, int], List[Tuple]]:
+        with open(self._model, "r") as model_f:
+
+            # Retrieve information
+            nb_pieces, nb_merges = map(int, model_f.readline().split())
+            vocab, merges = {}, []
+
+            # Vocab
+            for _ in trange(nb_pieces):
+                piece, piece_id = map(int, model_f.readline().split())
+                vocab[piece_id] = chr(piece)
+
+            # Merges
+            for _ in trange(nb_merges):
+                piece_id_l, piece_id_r, piece = map(int, model_f.readline().split())
+                piece_l, piece_r = vocab[piece_id_l], vocab[piece_id_r]
+                vocab[piece] = f"{piece_l}{piece_r}"
+                merges += [(piece_l, piece_r)]
+
+            # Special tokens
+            unk, pad, bos, eos = map(int, model_f.readline().split())
+            vocab[unk] = "<unk>"
+            vocab[pad] = "<pad>"
+            vocab[bos] = "<bos>"
+            vocab[eos] = "<eos>"
+
+        # Invert key and value for vocab
+        vocab = dict(zip(vocab.values(), vocab.keys()))
         return vocab, merges

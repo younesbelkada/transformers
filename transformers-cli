@@ -6,6 +6,7 @@ from transformers.commands.run import RunCommand
 from transformers.commands.user import UserCommands
 from transformers.commands.convert import ConvertCommand
 from transformers.commands.serving import ServeCommand
+from transformers.commands.vocab import VocabCommand
 
 if __name__ == '__main__':
     parser = ArgumentParser('Transformers CLI tool', usage='transformers-cli <command> [<args>]')
@@ -17,6 +18,7 @@ if __name__ == '__main__':
     RunCommand.register_subcommand(commands_parser)
     ServeCommand.register_subcommand(commands_parser)
     UserCommands.register_subcommand(commands_parser)
+    VocabCommand.register_subcommand(commands_parser)
 
     # Let's go
     args = parser.parse_args()
