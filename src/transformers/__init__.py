@@ -235,6 +235,7 @@ _import_structure = {
     ],
     "models.visual_bert": ["VISUAL_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "VisualBertConfig"],
     "models.vit": ["VIT_PRETRAINED_CONFIG_ARCHIVE_MAP", "ViTConfig"],
+    "models.vqgan": ["VQGAN_PRETRAINED_CONFIG_ARCHIVE_MAP", "VQGANConfig"],
     "models.wav2vec2": [
         "WAV_2_VEC_2_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "Wav2Vec2Config",
@@ -406,6 +407,7 @@ if is_vision_available():
     _import_structure["models.clip"].append("CLIPProcessor")
     _import_structure["models.deit"].append("DeiTFeatureExtractor")
     _import_structure["models.vit"].append("ViTFeatureExtractor")
+    _import_structure["models.vqgan"].append("VQGANFeatureExtractor")
 else:
     from .utils import dummy_vision_objects
 
@@ -1016,6 +1018,13 @@ if is_torch_available():
             "ViTForImageClassification",
             "ViTModel",
             "ViTPreTrainedModel",
+        ]
+    )
+    _import_structure["models.vqgan"].extend(
+        [
+            "VQGAN_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "VQGANModel",
+            "VQGANPreTrainedModel",
         ]
     )
     _import_structure["models.wav2vec2"].extend(
@@ -1718,6 +1727,7 @@ if TYPE_CHECKING:
     )
     from .models.visual_bert import VISUAL_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, VisualBertConfig
     from .models.vit import VIT_PRETRAINED_CONFIG_ARCHIVE_MAP, ViTConfig
+    from .models.vqgan import VQGAN_PRETRAINED_CONFIG_ARCHIVE_MAP, VQGANConfig
     from .models.wav2vec2 import (
         WAV_2_VEC_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
         Wav2Vec2Config,
@@ -1864,6 +1874,7 @@ if TYPE_CHECKING:
         from .models.clip import CLIPFeatureExtractor, CLIPProcessor
         from .models.deit import DeiTFeatureExtractor
         from .models.vit import ViTFeatureExtractor
+        from .models.vqgan import VQGANFeatureExtractor
     else:
         from .utils.dummy_vision_objects import *
 
@@ -2369,6 +2380,11 @@ if TYPE_CHECKING:
             ViTForImageClassification,
             ViTModel,
             ViTPreTrainedModel,
+        )
+        from .models.vqgan import (
+            VQGAN_PRETRAINED_MODEL_ARCHIVE_LIST,
+            VQGANModel,
+            VQGANPreTrainedModel,
         )
         from .models.wav2vec2 import (
             WAV_2_VEC_2_PRETRAINED_MODEL_ARCHIVE_LIST,

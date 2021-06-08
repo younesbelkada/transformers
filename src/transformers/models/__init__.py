@@ -76,6 +76,7 @@ from . import (
     transfo_xl,
     visual_bert,
     vit,
+    vqgan,
     wav2vec2,
     xlm,
     xlm_roberta,
