@@ -1767,15 +1767,6 @@ if is_tf_available():
             "TFBertPreTrainedModel",
         ]
     )
-    _import_structure["models.bigscience176b"].extend(
-        [
-            "TF_BIGSCIENCE176B_PRETRAINED_MODEL_ARCHIVE_LIST",
-            "TFBigScience176BLMHeadModel",
-            "TFBigScience176BMainLayer",
-            "TFBigScience176BModel",
-            "TFBigScience176BPreTrainedModel",
-        ]
-    )
     _import_structure["models.blenderbot"].extend(
         ["TFBlenderbotForConditionalGeneration", "TFBlenderbotModel", "TFBlenderbotPreTrainedModel"]
     )
@@ -2274,9 +2265,6 @@ if is_flax_available():
             "FlaxBigBirdModel",
             "FlaxBigBirdPreTrainedModel",
         ]
-    )
-    _import_structure["models.bigscience176b"].extend(
-        ["FlaxBigScience176BLMHeadModel", "FlaxBigScience176BModel", "FlaxBigScience176BPreTrainedModel"]
     )
     _import_structure["models.blenderbot"].extend(
         ["FlaxBlenderbotForConditionalGeneration", "FlaxBlenderbotModel", "FlaxBlenderbotPreTrainedModel"]
