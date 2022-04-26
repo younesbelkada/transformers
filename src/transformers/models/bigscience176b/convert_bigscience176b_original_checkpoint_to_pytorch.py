@@ -81,7 +81,7 @@ def convert_bigscience176b_checkpoint_to_pytorch(
     file_names = os.listdir(bigscience176b_checkpoint_path)
     file_names = list(sorted(filter(lambda s: s.startswith("layer") and "model_00" in s, file_names)))
 
-    file_names = file_names[0] + file_names[-1]
+    file_names = [file_names[0], file_names[-1]]
     print(file_names)
     missing_keys = None
     for file in file_names:
