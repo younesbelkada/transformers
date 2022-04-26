@@ -115,17 +115,17 @@ class BigScience176BConfig(PretrainedConfig):
     def __init__(
         self,
         vocab_size=250880,
-        seq_length=20,  # 2048,
-        hidden_size=64,  # 14336,
-        n_layer=2,  # 70,
-        n_head=8,  # 122,
+        seq_length=2048,
+        hidden_size=14336,
+        n_layer=1,
+        n_head=122,
         n_inner=None,
         masked_softmax_fusion=True,
         layer_norm_epsilon=1e-5,  # TODO
         initializer_range=0.02,  # TODO
         use_cache=False,  # TODO
-        bos_token_id=0,  # 50256,  # TODO
-        eos_token_id=0,  # =50256,  # TODO
+        bos_token_id=50256,  # TODO
+        eos_token_id=50256,  # TODO
         apply_residual_connection_post_layernorm=False,
         bias_dropout_fusion=True,
         skip_bias_add=True,
