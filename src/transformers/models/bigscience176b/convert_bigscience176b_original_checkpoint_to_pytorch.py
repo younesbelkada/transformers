@@ -123,7 +123,7 @@ def convert_bigscience176b_checkpoint_to_pytorch(
             missing_keys = set(other_keys.missing_keys)
         else:
             missing_keys = missing_keys.intersection(set(other_keys.missing_keys))
-        break
+        # break
 
     assert not missing_keys
 
