@@ -40,10 +40,10 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         # TODO ifelse device
         model = AutoModel.from_pretrained(self.path_bigscience_model, use_cache=False)
         device_map = {
-            0: [0, 1, 2],
-            1: [3, 4, 5],
-            2: [6, 7, 8],
-            3: [9, 10, 11],
+            0: [0, 1, 2, 3, 4, 5],
+            1: [6, 7, 8, 9, 10, 11],
+            2: [12, 13, 14, 15, 16, 17],
+            3: [18, 19, 20, 21, 22, 23],
         }
         model.parallelize(device_map)
         model.eval()
