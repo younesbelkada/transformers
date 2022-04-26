@@ -38,7 +38,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
     # @unittest.skip("demonstrating skipping")
     def test_logits(self):
         # TODO ifelse device
-        model = AutoModel.from_pretrained(self.path_bigscience_model, use_cache=False)
+        model = BigScience176BLMHeadModel.from_pretrained(self.path_bigscience_model, use_cache=False)
         device_map = {
             0: [0, 1, 2, 3, 4, 5],
             1: [6, 7, 8, 9, 10, 11],
