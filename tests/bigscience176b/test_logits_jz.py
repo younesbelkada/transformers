@@ -99,6 +99,10 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
         print("Logits shape: ", logits.shape)
         print("Logits: ", logits.mean().item())
+        print("Max: ", logits.max().item())
+        print("Min: ", logits.min().item())
+        print("Mean: ", logits.mean(dim=-1))
+        print("Some values: ", logits[0,:, 0])
 
         EXAMPLE_IDS = [[144252, 2, 2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586,  35433, 2, 77, 132619,   3478,    368, 109586,  35433]]
 
@@ -108,7 +112,10 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
         print("Logits2 shape: ", logits.shape)
         print("Logits2: ", logits.mean().item())
-        print("Logits2 dtype: ", logits.dtype)
+        print("Max: ", logits.max().item())
+        print("Min: ", logits.min().item())
+        print("Mean: ", logits.mean(dim=-1))
+        print("Some values: ", logits[0,:, 0])
 
 
 if __name__ == "__main__":
