@@ -52,6 +52,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
         a = torch.randn(1, 1, 20, 20)
         ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to("cuda:0")
+        ATTN_MASK = None
         input_tensor = torch.LongTensor(EXAMPLE_IDS).to("cuda:0")
 
         logits = model(input_tensor, attention_mask=ATTN_MASK).logits
