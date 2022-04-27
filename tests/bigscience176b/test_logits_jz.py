@@ -56,6 +56,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
         logits = model(input_tensor, attention_mask=ATTN_MASK).logits
 
+        print("Logits shape: ", logits.shape)
         print("Logits: ", logits.mean().item())
 
 
