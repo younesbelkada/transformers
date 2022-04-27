@@ -100,6 +100,16 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         print("Logits shape: ", logits.shape)
         print("Logits: ", logits.mean().item())
 
+        EXAMPLE_IDS = [[144252, 2, 2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586,  35433, 2, 77, 132619,   3478,    368, 109586,  35433]]
+
+        input_tensor = torch.LongTensor(EXAMPLE_IDS).to("cuda:0")
+
+        logits = model(input_tensor, attention_mask=ATTN_MASK).logits
+
+        print("Logits2 shape: ", logits.shape)
+        print("Logits2: ", logits.mean().item())
+        print("Logits2 dtype: ", logits.dtype)
+
 
 if __name__ == "__main__":
     unittest.main()

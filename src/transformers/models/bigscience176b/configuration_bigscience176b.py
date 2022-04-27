@@ -133,7 +133,7 @@ class BigScience176BConfig(PretrainedConfig):
         attention_dropout=0.1,
         pretraining_tp=1,  # TODO
         pretraining_pp=1,  # TODO
-        dtype="bfloat16",
+        dtype="float16",
         **kwargs,
     ):
         self.vocab_size = vocab_size
