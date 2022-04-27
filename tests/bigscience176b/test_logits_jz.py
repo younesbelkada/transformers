@@ -52,7 +52,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
         # a = torch.randn(1, 1, 20, 20)
         # ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to("cuda:0")
-        ATTN_MASK = tensor([[[[False,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+        ATTN_MASK = torch.tensor([[[[False,  True,  True,  True,  True,  True,  True,  True,  True,  True,
                 True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
             [False, False,  True,  True,  True,  True,  True,  True,  True,  True,
                 True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
