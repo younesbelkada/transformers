@@ -48,11 +48,51 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         model.parallelize(device_map)
         model.eval()
 
-        EXAMPLE_IDS = [2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]
+        EXAMPLE_IDS = [[2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]]
 
-        a = torch.randn(1, 1, 20, 20)
-        ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to("cuda:0")
-        ATTN_MASK = None
+        # a = torch.randn(1, 1, 20, 20)
+        # ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to("cuda:0")
+        ATTN_MASK = tensor([[[[False,  True,  True,  True,  True,  True,  True,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False,  True,  True,  True,  True,  True,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False,  True,  True,  True,  True,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False,  True,  True,  True,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False,  True,  True,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False,  True,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False,  True,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False,  True,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False,  True,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False,  True,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False,  True,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False,  True,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False,  True,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False,  True,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False, False,  True,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False, False, False,  True,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False, False, False, False,  True,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False, False, False, False, False,  True],
+            [False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False, False, False, False, False, False]]]],device='cuda:0')
+
         input_tensor = torch.LongTensor(EXAMPLE_IDS).to("cuda:0")
 
         logits = model(input_tensor, attention_mask=ATTN_MASK).logits
