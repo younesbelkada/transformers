@@ -769,6 +769,8 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
         print("Embed :", inputs_embeds.mean().item())
+        print(self.word_embeddings_layernorm.weight)
+        print(self.word_embeddings_layernorm.bias)
 
         hidden_states = self.word_embeddings_layernorm(inputs_embeds)
         hidden_states = hidden_states.transpose(0, 1).contiguous()
