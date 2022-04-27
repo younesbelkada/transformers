@@ -384,10 +384,10 @@ class BigScience176BBlock(nn.Module):
             use_cache=use_cache,
             output_attentions=output_attentions,
         )
-        print("attn-B1 mean:", attn_outputs.mean().item())
         # attention_bias = None
 
         attention_output = attn_outputs[0]
+        print("attn-B1 mean:", attn_output.mean().item())
         outputs = attn_outputs[1:]
 
         # Layer norm post the self attention.
