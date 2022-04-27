@@ -372,6 +372,7 @@ class BigScience176BBlock(nn.Module):
 
         # Layer norm at the beginning of the transformer layer.
         layernorm_output = self.input_layernorm(hidden_states)
+        print("LN-B1 mean:", layernorm_output.mean().item())
 
         # Self attention.
         attn_outputs, attention_bias = self.self_attention(
@@ -383,6 +384,7 @@ class BigScience176BBlock(nn.Module):
             use_cache=use_cache,
             output_attentions=output_attentions,
         )
+        print("attn-B1 mean:", attn_outputs.mean().item())
         # attention_bias = None
 
         attention_output = attn_outputs[0]
@@ -413,6 +415,7 @@ class BigScience176BBlock(nn.Module):
             )
 
         layernorm_output = self.post_attention_layernorm(layernorm_input)
+        print("LN-B1 mean2:", layernorm_output.mean().item())
 
         # MLP.
 
@@ -432,6 +435,7 @@ class BigScience176BBlock(nn.Module):
         else:
             outputs = (output,) + outputs[1:]
 
+        print("B1 mean:", output.mean().item())
         return outputs  # hidden_states, present, attentions
 
 
@@ -764,9 +768,11 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
+        print("Embed :", inputs_embeds.mean().item())
 
         hidden_states = self.word_embeddings_layernorm(inputs_embeds)
         hidden_states = hidden_states.transpose(0, 1).contiguous()
+        print("LN :", hidden_states.mean().item())
 
         if token_type_ids is not None:
             token_type_embeds = self.word_embeddings(token_type_ids)

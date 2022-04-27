@@ -72,7 +72,7 @@ def convert_bigscience176b_checkpoint_to_pytorch(
 ):
     # Construct model
     if bigscience176b_config_file == "":
-        config = BigScience176BConfig(dtype="float16")
+        config = BigScience176BConfig()
     else:
         config = BigScience176BConfig.from_json_file(bigscience176b_config_file)
     model = BigScience176BModel(config)
