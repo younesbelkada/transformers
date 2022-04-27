@@ -30,7 +30,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        self.path_tokenizer = "bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles"
+        # self.path_tokenizer = "bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles"
         # self.tokenizer = AutoTokenizer.from_pretrained(self.path_tokenizer)
         self.path_bigscience_model = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers"
 
@@ -48,28 +48,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         model.parallelize(device_map)
         model.eval()
 
-        EXAMPLE_IDS = [
-            3478,
-            368,
-            109586,
-            35433,
-            2,
-            77,
-            132619,
-            3478,
-            368,
-            109586,
-            35433,
-            2,
-            2175,
-            23714,
-            73173,
-            144252,
-            2,
-            77,
-            132619,
-            3478,
-        ]
+        EXAMPLE_IDS = [2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]
 
         a = torch.randn(1, 1, 20, 20)
         ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to("cuda:0")
