@@ -138,10 +138,11 @@ class BigScience176BAttention(nn.Module):
         
         self.mask_func = attention_mask_func
 
-        self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype)
+        self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype, bias=True)
         # TODO : Try a custom class
         self.dense = nn.Linear(self.hidden_size, self.hidden_size, dtype=dtype)
         self.skip_bias_add = config.skip_bias_add
+        self.skip_bias_add_qkv = config.skip_bias_add_qkv
         self.attention_dropout = torch.nn.Dropout(config.attention_dropout)
 
     def forward(
@@ -161,9 +162,9 @@ class BigScience176BAttention(nn.Module):
         # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
         print(self.query_key_value.bias, self.query_key_value)
         print("bias ===> ", self.query_key_value.bias, self.skip_bias_add)
-        bias = self.query_key_value.bias if not self.skip_bias_add else None
+        bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
         print("bias ===> ", bias, self.skip_bias_add)
-        output_bias = self.query_key_value.bias if self.skip_bias_add else None
+        output_bias = self.query_key_value.bias if self.skip_bias_add_qkv else None
         print("Input shape ============> ", hidden_states.shape)
         mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
         print("Shape ============> ", self.query_key_value.weight.shape)
