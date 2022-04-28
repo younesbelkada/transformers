@@ -33,6 +33,8 @@ from .configuration_bigscience176b import BigScience176BConfig
 from .fused_bias_gelu import bias_gelu_impl
 from .mpu_utils import split_tensor_along_last_dim
 
+from .scaled_softmax import ScaledSoftmax
+
 # try:
 #     import apex
 #     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
@@ -103,6 +105,18 @@ class BigScience176BAttention(nn.Module):
         self.num_heads = config.n_head
         self.head_dim = self.hidden_size // self.num_heads
         self.split_size = self.hidden_size
+        self.attention_softmax_in_fp32 = config.attention_softmax_in_fp32
+        self.masked_softmax_fusion = config.masked_softmax_fusion
+        if dtype == torch.float16:
+            self.fp16=True
+            self.bf16=False
+        elif dtype == torch.bfloat16:
+            self.fp16=False
+            self.bf16=True
+        else:
+            self.fp16=False
+            self.bf16=False
+
         if self.head_dim * self.num_heads != self.hidden_size:
             raise ValueError(
                 f"`hidden_size` must be divisible by num_heads (got `hidden_size`: {self.hidden_size} and `num_heads`: {self.num_heads})."
@@ -113,7 +127,16 @@ class BigScience176BAttention(nn.Module):
         coeff = self.layer_number
         self.norm_factor = math.sqrt(self.head_dim) * coeff
 
-        self.scale_mask_softmax = nn.Softmax(dim=1)
+        # self.scale_mask_softmax = nn.Softmax(dim=1)
+        self.scale_mask_softmax = ScaledSoftmax(
+            self.fp16, self.bf16,
+            self.attn_mask_type,
+            self.masked_softmax_fusion,
+            attention_mask_func,
+            self.attention_softmax_in_fp32,
+            coeff
+        )
+        
         self.mask_func = attention_mask_func
 
         self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype)
@@ -137,7 +160,9 @@ class BigScience176BAttention(nn.Module):
 
         print("Attention input ==============> ", hidden_states.mean(), hidden_states.mean().item())
         # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
-        mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight), self.query_key_value.bias
+        bias = self.bias if not self.skip_bias_add else None
+        output_bias = self.bias if self.skip_bias_add else None
+        mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
         print("Attention output ==============> ", mixed_x_layer.mean(), mixed_x_layer.mean().item())
 
 
