@@ -161,6 +161,7 @@ class BigScience176BAttention(nn.Module):
         # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
         bias = self.query_key_value.bias if not self.skip_bias_add else None
         output_bias = self.query_key_value.bias if self.skip_bias_add else None
+        print("Input shape ============> ", hidden_states.shape)
         mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
         print("Shape ============> ", self.query_key_value.weight.shape)
         print("Mean ============> ", self.query_key_value.weight.mean().item())
