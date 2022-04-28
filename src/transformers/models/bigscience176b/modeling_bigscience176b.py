@@ -165,6 +165,7 @@ class BigScience176BAttention(nn.Module):
         mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
         print("Shape ============> ", self.query_key_value.weight.shape)
         print("Mean ============> ", self.query_key_value.weight.mean().item())
+        print("Mean bias ============> ", self.query_key_value.bias.mean().item())
         print("Attention output ==============> ", mixed_x_layer.mean(), mixed_x_layer.mean().item())
 
 
