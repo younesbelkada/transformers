@@ -137,7 +137,7 @@ class BigScience176BAttention(nn.Module):
 
         print("Attention input ==============> ", hidden_states.mean(), hidden_states.mean().item())
         # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
-        mixed_x_layer = self.query_key_value(hidden_states)
+        mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight), self.query_key_value.bias
         print("Attention output ==============> ", mixed_x_layer.mean(), mixed_x_layer.mean().item())
 
 
