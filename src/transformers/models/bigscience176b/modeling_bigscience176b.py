@@ -158,20 +158,11 @@ class BigScience176BAttention(nn.Module):
         # hidden_states: [sq, b, h]
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
-        print("Attention input ==============> ", hidden_states.mean(), hidden_states.mean().item())
-        # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
-        print(self.query_key_value.bias, self.query_key_value)
-        print("bias ===> ", self.query_key_value.bias, self.skip_bias_add)
         bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
-        print("bias ===> ", bias, self.skip_bias_add)
-        output_bias = self.query_key_value.bias if self.skip_bias_add_qkv else None
-        print("Input shape ============> ", hidden_states.shape)
-        mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
-        print("Shape ============> ", self.query_key_value.weight.shape)
-        print("Mean ============> ", self.query_key_value.weight.mean().item())
-        print("Mean bias ============> ", self.query_key_value.bias.mean().item())
-        print("Attention output ==============> ", mixed_x_layer.mean(), mixed_x_layer.mean().item())
 
+        output_bias = self.query_key_value.bias if self.skip_bias_add_qkv else None
+
+        mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
 
         # [sq, b, (np * 3 * hn)] --> [sq, b, np, 3 * hn]
         new_tensor_shape = mixed_x_layer.size()[:-1] + (self.num_heads, 3 * self.head_dim)
@@ -202,13 +193,10 @@ class BigScience176BAttention(nn.Module):
         # [sk, b, np, hn] -> [sk, b * np, hn]
         key_layer = key_layer.view(output_size[3], output_size[0] * output_size[1], -1)
 
-        print("Query Layer output ==============> ", query_layer.mean(), query_layer.mean().item())
-        print("Key Layer output ==============> ", key_layer.mean(), key_layer.mean().item())
 
         # alibi
         matmul_result = alibi[: output_size[0] * output_size[1], :, : output_size[3]]
 
-        print("MatMul output ==============> ", matmul_result.mean(), matmul_result.mean().item())
 
 
         # Raw attention scores. [b * np, sq, sk]
@@ -223,7 +211,6 @@ class BigScience176BAttention(nn.Module):
         )
 
         # change view to [b, np, sq, sk]
-        print("MatMul output 2 ==============> ", matmul_result.mean(), matmul_result.mean().item())
 
         attention_scores = matmul_result.view(*output_size)
 
@@ -264,7 +251,6 @@ class BigScience176BAttention(nn.Module):
         )
         attention_probs = self.attention_dropout(attention_probs)
 
-        print("ATT prob ==============> ", attention_probs.mean(), attention_probs.mean().item())
 
         # =========================
         # Context layer. [sq, b, hp]
@@ -293,8 +279,8 @@ class BigScience176BAttention(nn.Module):
 
         # [sq, b, np, hn] --> [sq, b, hp]
         new_context_layer_shape = context_layer.size()[:-2] + (self.hidden_size,)
+        
         context_layer = context_layer.view(*new_context_layer_shape)
-        print("Context layer ==============> ", context_layer.mean(), context_layer.mean().item())
 
 
         # =================
@@ -312,7 +298,7 @@ class BigScience176BAttention(nn.Module):
                 )
         else:
             output_tensor = F.linear(context_layer, self.dense.weight)
-        print("Here layer ==============> ", output_tensor.mean(), output_tensor.mean().item(), self.dense.bias)
+
         if not self.skip_bias_add:
             output_tensor = output_tensor + self.dense.bias if self.dense.bias is not None else output_tensor
             output_bias = None
@@ -349,12 +335,15 @@ class BigScience176BMLP(nn.Module):
         )
 
         intermediate_output = torch.zeros_like(input_)
-        slices = self.dense_4h_to_h.weight.shape[-1] / self.pretraining_tp
-        for i in range(self.pretraining_tp):
-            intermediate_output = intermediate_output + F.linear(
-                hidden_states[:, :, int(i * slices) : int((i + 1) * slices)],
-                self.dense_4h_to_h.weight[:, int(i * slices) : int((i + 1) * slices)],
-            )
+        if self.pretraining_tp > 1:
+            slices = self.dense_4h_to_h.weight.shape[-1] / self.pretraining_tp
+            for i in range(self.pretraining_tp):
+                intermediate_output = intermediate_output + F.linear(
+                    hidden_states[:, :, int(i * slices) : int((i + 1) * slices)],
+                    self.dense_4h_to_h.weight[:, int(i * slices) : int((i + 1) * slices)],
+                )
+        else:
+            intermediate_output = F.linear(hidden_states, self.dense_4h_to_h.weight)
 
         if not self.skip_bias_add:
             output = (
@@ -432,7 +421,6 @@ class BigScience176BBlock(nn.Module):
 
         # Layer norm at the beginning of the transformer layer.
         layernorm_output = self.input_layernorm(hidden_states)
-        print("LN-B1 mean:", layernorm_output.mean().item())
 
         # Self attention.
         attn_outputs, attention_bias = self.self_attention(
@@ -447,7 +435,7 @@ class BigScience176BBlock(nn.Module):
         # attention_bias = None
 
         attention_output = attn_outputs[0]
-        print("attn-B1 mean:", attention_output.mean().item())
+
         outputs = attn_outputs[1:]
 
         # Layer norm post the self attention.
@@ -475,7 +463,6 @@ class BigScience176BBlock(nn.Module):
             )
 
         layernorm_output = self.post_attention_layernorm(layernorm_input)
-        print("LN-B1 mean2:", layernorm_output.mean().item())
 
         # MLP.
 
@@ -495,7 +482,6 @@ class BigScience176BBlock(nn.Module):
         else:
             outputs = (output,) + outputs[1:]
 
-        print("B1 mean:", output.mean().item())
         return outputs  # hidden_states, present, attentions
 
 
@@ -828,15 +814,9 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
-        print("Embed :", inputs_embeds.mean().item())
-        print(self.word_embeddings_layernorm.weight)
-        print(self.word_embeddings_layernorm.weight.mean().item())
-        print(self.word_embeddings_layernorm.bias)
-        print(self.word_embeddings_layernorm.bias.mean().item())
 
         hidden_states = self.word_embeddings_layernorm(inputs_embeds)
         hidden_states = hidden_states.transpose(0, 1).contiguous()
-        print("LN :", hidden_states.mean().item())
 
         if token_type_ids is not None:
             token_type_embeds = self.word_embeddings(token_type_ids)

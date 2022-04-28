@@ -58,11 +58,6 @@ class ScaledSoftmax(nn.Module):
         ), "softmax should be in fp32 when scaled"
 
     def forward(self, input, mask):
-        return self.forward_torch_softmax(input, mask)
-
-
-
-    def forward_torch_softmax(self, input, mask):
         if self.input_in_float16 and self.softmax_in_fp32:
             input = input.float()
 
