@@ -299,13 +299,16 @@ class BigScience176BAttention(nn.Module):
         # =================
 
         # aggregate results across tp ranks. See here: https://github.com/pytorch/pytorch/issues/76232
-        slices = context_layer.shape[-1] / self.pretraining_tp
-        output_tensor = torch.zeros_like(context_layer)
-        for i in range(self.pretraining_tp):
-            output_tensor = output_tensor + F.linear(
-                context_layer[:, :, int(i * slices) : int((i + 1) * slices)],
-                self.dense.weight[:, int(i * slices) : int((i + 1) * slices)],
-            )
+        if self.pretraining_tp > 1:
+            slices = context_layer.shape[-1] / self.pretraining_tp
+            output_tensor = torch.zeros_like(context_layer)
+            for i in range(self.pretraining_tp):
+                output_tensor = output_tensor + F.linear(
+                    context_layer[:, :, int(i * slices) : int((i + 1) * slices)],
+                    self.dense.weight[:, int(i * slices) : int((i + 1) * slices)],
+                )
+        else:
+            output_tensor = F.linear(context_layer, self.dense.weight)
         print("Here layer ==============> ", output_tensor.mean(), output_tensor.mean().item(), self.dense.bias)
         if not self.skip_bias_add:
             output_tensor = output_tensor + self.dense.bias if self.dense.bias is not None else output_tensor
