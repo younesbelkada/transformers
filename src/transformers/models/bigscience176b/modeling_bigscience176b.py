@@ -306,6 +306,7 @@ class BigScience176BAttention(nn.Module):
                 context_layer[:, :, int(i * slices) : int((i + 1) * slices)],
                 self.dense.weight[:, int(i * slices) : int((i + 1) * slices)],
             )
+        print("Here layer ==============> ", output_tensor.mean(), output_tensor.mean().item(), self.dense.bias)
         if not self.skip_bias_add:
             output_tensor = output_tensor + self.dense.bias if self.dense.bias is not None else output_tensor
             output_bias = None
