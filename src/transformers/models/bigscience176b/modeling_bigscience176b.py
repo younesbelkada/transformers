@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch import Tensor, nn
-from torch.nn import CrossEntropyLoss, LayerNorm
+from torch.nn import CrossEntropyLoss
 
 from ...file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, CausalLMOutputWithCrossAttentions
@@ -35,11 +35,11 @@ from .mpu_utils import split_tensor_along_last_dim
 
 from .scaled_softmax import ScaledSoftmax
 
-# try:
-#     import apex
-#     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
-# except:
-#     pass
+try:
+    import apex
+    from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
+except:
+    from torch.nn import LayerNorm
 
 
 # if version.parse(torch.__version__) >= version.parse("1.6"):
@@ -279,7 +279,7 @@ class BigScience176BAttention(nn.Module):
 
         # [sq, b, np, hn] --> [sq, b, hp]
         new_context_layer_shape = context_layer.size()[:-2] + (self.hidden_size,)
-        
+
         context_layer = context_layer.view(*new_context_layer_shape)
 
 
