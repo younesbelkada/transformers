@@ -202,8 +202,14 @@ class BigScience176BAttention(nn.Module):
         # [sk, b, np, hn] -> [sk, b * np, hn]
         key_layer = key_layer.view(output_size[3], output_size[0] * output_size[1], -1)
 
+        print("Query Layer output ==============> ", query_layer.mean(), query_layer.mean().item())
+        print("Key Layer output ==============> ", key_layer.mean(), key_layer.mean().item())
+
         # alibi
         matmul_result = alibi[: output_size[0] * output_size[1], :, : output_size[3]]
+
+        print("MatMul output ==============> ", matmul_result.mean(), matmul_result.mean().item())
+
 
         # Raw attention scores. [b * np, sq, sk]
         beta = 1.0 / self.layer_number
@@ -217,6 +223,8 @@ class BigScience176BAttention(nn.Module):
         )
 
         # change view to [b, np, sq, sk]
+        print("MatMul output 2 ==============> ", matmul_result.mean(), matmul_result.mean().item())
+
         attention_scores = matmul_result.view(*output_size)
 
         # ==================================================
@@ -253,6 +261,8 @@ class BigScience176BAttention(nn.Module):
         attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
         attention_probs = self.attention_dropout(attention_probs)
 
+        print("ATT prob ==============> ", attention_probs.mean(), attention_probs.mean().item())
+
         # =========================
         # Context layer. [sq, b, hp]
         # =========================
@@ -281,6 +291,8 @@ class BigScience176BAttention(nn.Module):
         # [sq, b, np, hn] --> [sq, b, hp]
         new_context_layer_shape = context_layer.size()[:-2] + (self.hidden_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
+        print("Context layer ==============> ", context_layer.mean(), context_layer.mean().item())
+
 
         # =================
         # Output. [sq, b, h]
