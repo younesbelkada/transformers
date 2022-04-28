@@ -364,10 +364,10 @@ class BigScience176BBlock(nn.Module):
         hidden_size = config.hidden_size
         dtype = getattr(torch, config.dtype)
 
-        self.input_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon, dtype=dtype)
+        self.input_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon).to(dtype)
         self.alibi = self._build_alibi_tensor(config.seq_length, config.n_head, dtype=dtype)
         self.self_attention = BigScience176BAttention(config, layer_number=layer_number)
-        self.post_attention_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon, dtype=dtype)
+        self.post_attention_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon).to(dtype)
 
         self.mlp = BigScience176BMLP(config)
 
@@ -677,13 +677,13 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
 
         # Embedding + LN Embedding
         self.word_embeddings = nn.Embedding(config.vocab_size, self.embed_dim, dtype=dtype)
-        self.word_embeddings_layernorm = LayerNorm(self.embed_dim, dtype=dtype, eps=config.layer_norm_epsilon)
+        self.word_embeddings_layernorm = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon).to(dtype)
 
         # Transformer blocks
         self.h = nn.ModuleList([BigScience176BBlock(config, layer_number=i) for i in range(config.num_hidden_layers)])
 
         # Final Layer Norm
-        self.ln_f = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon, dtype=dtype)
+        self.ln_f = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon).to(dtype)
 
         # Model parallel
         self.model_parallel = False
