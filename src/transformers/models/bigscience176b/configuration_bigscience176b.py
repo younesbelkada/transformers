@@ -131,6 +131,7 @@ class BigScience176BConfig(PretrainedConfig):
         skip_bias_add=True,
         hidden_dropout=0.0,
         attention_dropout=0.0,
+        attention_softmax_in_fp32=True,
         pretraining_tp=1,  # TODO
         pretraining_pp=1,  # TODO
         dtype="float16",
@@ -153,6 +154,7 @@ class BigScience176BConfig(PretrainedConfig):
         self.hidden_dropout = hidden_dropout
         self.skip_bias_add = skip_bias_add
         self.attention_dropout = attention_dropout
+        self.attention_softmax_in_fp32 = attention_softmax_in_fp32
 
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
