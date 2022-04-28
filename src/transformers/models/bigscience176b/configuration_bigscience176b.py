@@ -129,8 +129,8 @@ class BigScience176BConfig(PretrainedConfig):
         apply_residual_connection_post_layernorm=False,
         bias_dropout_fusion=True,
         skip_bias_add=True,
-        hidden_dropout=0.1,
-        attention_dropout=0.1,
+        hidden_dropout=0.0,
+        attention_dropout=0.0,
         pretraining_tp=1,  # TODO
         pretraining_pp=1,  # TODO
         dtype="float16",
