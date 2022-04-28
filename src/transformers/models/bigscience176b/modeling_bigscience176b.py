@@ -255,10 +255,13 @@ class BigScience176BAttention(nn.Module):
         #     aggregated_tensors.append(torch.nn.Softmax(dim=-1)(mask_output))
 
         # attention_probs = torch.cat(aggregated_tensors, dim=1)
-        mask_output = (
-            self.mask_func(attention_scores, attention_mask) if attention_mask is not None else attention_scores
+        # mask_output = (
+        #     self.mask_func(attention_scores, attention_mask) if attention_mask is not None else attention_scores
+        # )
+        # attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
+        attention_probs = self.scale_mask_softmax(
+            attention_scores, attention_mask
         )
-        attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
         attention_probs = self.attention_dropout(attention_probs)
 
         print("ATT prob ==============> ", attention_probs.mean(), attention_probs.mean().item())
