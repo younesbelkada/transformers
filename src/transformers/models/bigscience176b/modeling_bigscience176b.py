@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch import Tensor, nn
-from torch.nn import CrossEntropyLoss
+from torch.nn import CrossEntropyLoss, LayerNorm
 
 from ...file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, CausalLMOutputWithCrossAttentions
@@ -32,6 +32,12 @@ from ...utils.model_parallel_utils import assert_device_map, get_device_map
 from .configuration_bigscience176b import BigScience176BConfig
 from .fused_bias_gelu import bias_gelu_impl
 from .mpu_utils import split_tensor_along_last_dim
+
+# try:
+#     import apex
+#     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
+# except:
+#     pass
 
 
 # if version.parse(torch.__version__) >= version.parse("1.6"):
@@ -129,8 +135,11 @@ class BigScience176BAttention(nn.Module):
         # hidden_states: [sq, b, h]
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
+        print("Attention input ==============> ", hidden_states.mean(), hidden_states.mean().item())
         # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
         mixed_x_layer = self.query_key_value(hidden_states)
+        print("Attention output ==============> ", mixed_x_layer.mean(), mixed_x_layer.mean().item())
+
 
         # [sq, b, (np * 3 * hn)] --> [sq, b, np, 3 * hn]
         new_tensor_shape = mixed_x_layer.size()[:-1] + (self.num_heads, 3 * self.head_dim)
@@ -315,10 +324,10 @@ class BigScience176BBlock(nn.Module):
         hidden_size = config.hidden_size
         dtype = getattr(torch, config.dtype)
 
-        self.input_layernorm = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon, dtype=dtype)
+        self.input_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon, dtype=dtype)
         self.alibi = self._build_alibi_tensor(config.seq_length, config.n_head, dtype=dtype)
         self.self_attention = BigScience176BAttention(config, layer_number=layer_number)
-        self.post_attention_layernorm = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon, dtype=dtype)
+        self.post_attention_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon, dtype=dtype)
 
         self.mlp = BigScience176BMLP(config)
 
@@ -465,7 +474,7 @@ class BigScience176BPreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
-        elif isinstance(module, nn.LayerNorm):
+        elif isinstance(module, LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
@@ -631,13 +640,13 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
 
         # Embedding + LN Embedding
         self.word_embeddings = nn.Embedding(config.vocab_size, self.embed_dim, dtype=dtype)
-        self.word_embeddings_layernorm = nn.LayerNorm(self.embed_dim, dtype=dtype, eps=config.layer_norm_epsilon)
+        self.word_embeddings_layernorm = LayerNorm(self.embed_dim, dtype=dtype, eps=config.layer_norm_epsilon)
 
         # Transformer blocks
         self.h = nn.ModuleList([BigScience176BBlock(config, layer_number=i) for i in range(config.num_hidden_layers)])
 
         # Final Layer Norm
-        self.ln_f = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon, dtype=dtype)
+        self.ln_f = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon, dtype=dtype)
 
         # Model parallel
         self.model_parallel = False
