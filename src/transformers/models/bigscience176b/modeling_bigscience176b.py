@@ -130,7 +130,6 @@ class BigScience176BAttention(nn.Module):
         # self.scale_mask_softmax = nn.Softmax(dim=1)
         self.scale_mask_softmax = ScaledSoftmax(
             self.fp16, self.bf16,
-            self.attn_mask_type,
             self.masked_softmax_fusion,
             attention_mask_func,
             self.attention_softmax_in_fp32,
