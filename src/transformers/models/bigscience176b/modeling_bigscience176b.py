@@ -38,8 +38,11 @@ from .scaled_softmax import ScaledSoftmax
 try:
     import apex
     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
+    print("successfully imported apex!")
 except:
     from torch.nn import LayerNorm
+    print("Could not import apex - trying with torch.nn.LayerNorm instead")
+
 
 
 # if version.parse(torch.__version__) >= version.parse("1.6"):
