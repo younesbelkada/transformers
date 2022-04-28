@@ -17,7 +17,7 @@
 import torch
 import torch.nn as nn
 
-class FusedScaleMaskSoftmax(nn.Module):
+class ScaledSoftmax(nn.Module):
     """
     fused operation: scaling + mask + softmax
 
@@ -41,7 +41,7 @@ class FusedScaleMaskSoftmax(nn.Module):
         softmax_in_fp32,
         scale,
     ):
-        super(FusedScaleMaskSoftmax, self).__init__()
+        super(ScaledSoftmax, self).__init__()
         self.input_in_fp16 = input_in_fp16
         self.input_in_bf16 = input_in_bf16
         assert not (
