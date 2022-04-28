@@ -104,14 +104,14 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         print("Mean: ", logits.mean(dim=-1))
         print("Some values: ", logits[0,:, 0])
         print("Argmax: ", torch.argmax(logits, dim=-1))
-        torch.save(logits, "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_1_tr.pt")
+        torch.save(logits, "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_1_tr_apex.pt")
 
         EXAMPLE_IDS = [[144252, 2, 2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586,  35433, 2, 77, 132619,   3478,    368, 109586,  35433]]
 
         input_tensor = torch.LongTensor(EXAMPLE_IDS).to("cuda:0")
 
         logits = model(input_tensor, attention_mask=ATTN_MASK).logits
-        torch.save(logits, "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_2_tr.pt")
+        torch.save(logits, "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_2_tr_apex.pt")
         print("Logits2 shape: ", logits.shape)
         print("Logits2: ", logits.mean().item())
         print("Max: ", logits.max().item())
