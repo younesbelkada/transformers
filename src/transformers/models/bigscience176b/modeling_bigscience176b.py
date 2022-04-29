@@ -62,7 +62,9 @@ BIGSCIENCE176B_PRETRAINED_MODEL_ARCHIVE_LIST = [
 #     return attention_scores.masked_fill_(attention_mask, -10000.0)
 
 def attention_mask_func(attention_scores, attention_mask):
-    return torch.where(attention_mask == 1, attention_scores, -10000.0).to(attention_scores.dtype)
+    values_to_attend = 1.0 - attention_mask
+    return (values_to_attend * attention_scores) - 10000.0 * attention_mask
+    #  return torch.where(attention_mask == 1, attention_scores, -10000.0).to(attention_scores.dtype)
 
 
 def bias_dropout_add(x, bias, residual, prob, training):
