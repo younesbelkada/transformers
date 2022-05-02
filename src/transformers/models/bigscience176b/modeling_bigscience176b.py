@@ -43,15 +43,6 @@ except:
     from torch.nn import LayerNorm
     print("Could not import apex - trying with torch.nn.LayerNorm instead")
 
-
-
-# if version.parse(torch.__version__) >= version.parse("1.6"):
-#     is_amp_available = True
-#     from torch.cuda.amp import autocast
-# else:
-#     is_amp_available = False
-
-
 logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "bigscience/BigScience176B"
@@ -67,8 +58,13 @@ BIGSCIENCE176B_PRETRAINED_MODEL_ARCHIVE_LIST = [
 # Utility functions below:
 
 
+# def attention_mask_func(attention_scores, attention_mask):
+#     return attention_scores.masked_fill_(attention_mask, -10000.0)
+
 def attention_mask_func(attention_scores, attention_mask):
-    return attention_scores.masked_fill_(attention_mask, -10000.0)
+    values_to_attend = 1.0 - attention_mask
+    return (values_to_attend * attention_scores) - 10000.0 * attention_mask
+    #  return torch.where(attention_mask == 1, attention_scores, -10000.0).to(attention_scores.dtype)
 
 
 def bias_dropout_add(x, bias, residual, prob, training):
@@ -110,6 +106,7 @@ class BigScience176BAttention(nn.Module):
         self.split_size = self.hidden_size
         self.attention_softmax_in_fp32 = config.attention_softmax_in_fp32
         self.masked_softmax_fusion = config.masked_softmax_fusion
+
         if dtype == torch.float16:
             self.fp16=True
             self.bf16=False
@@ -341,8 +338,8 @@ class BigScience176BMLP(nn.Module):
             F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
         )
 
-        intermediate_output = torch.zeros_like(input_)
         if self.pretraining_tp > 1:
+            intermediate_output = torch.zeros_like(input_)
             slices = self.dense_4h_to_h.weight.shape[-1] / self.pretraining_tp
             for i in range(self.pretraining_tp):
                 intermediate_output = intermediate_output + F.linear(
@@ -792,26 +789,6 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
         if position_ids is None:
             position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
             position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
-
-        # BigScience176BAttention mask.
-        # if attention_mask is not None:
-        #     if batch_size <= 0:
-        #         raise ValueError("batch_size has to be defined and > 0")
-        #     attention_mask = attention_mask.view(batch_size, -1)
-        #     # We create a 3D attention mask from a 2D tensor mask.
-        #     # Sizes are [batch_size, 1, 1, to_seq_length]
-        #     # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
-        #     # this attention mask is more simple than the triangular masking of causal attention
-        #     # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
-        #     attention_mask = attention_mask[:, None, None, :]
-
-        #     # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-        #     # masked positions, this operation will create a tensor which is 0.0 for
-        #     # positions we want to attend and -10000.0 for masked positions.
-        #     # Since we are adding it to the raw scores before the softmax, this is
-        #     # effectively the same as removing these entirely.
-        #     attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
-        #     attention_mask = (1.0 - attention_mask) * -10000.0
 
         # Prepare head mask if needed
         # 1.0 in head_mask indicate we keep the head
