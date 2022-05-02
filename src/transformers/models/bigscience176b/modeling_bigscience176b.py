@@ -125,7 +125,8 @@ class BigScience176BAttention(nn.Module):
         # Layer-wise attention scaling
         self.layer_number = max(1, layer_number)
         coeff = self.layer_number
-        self.norm_factor = math.sqrt(self.head_dim) * coeff
+        self.hidden_size_per_attention_head = 64 
+        self.norm_factor = math.sqrt(self.hidden_size_per_attention_head) * coeff
 
         # self.scale_mask_softmax = nn.Softmax(dim=1)
         self.scale_mask_softmax = ScaledSoftmax(
@@ -330,13 +331,13 @@ class BigScience176BMLP(nn.Module):
     def forward(self, hidden_states):
         input_ = hidden_states
 
-        # hidden_states = self.activation_func(
-        #     F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
-        # )
-
-        hidden_states = F.gelu(
-            F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
+        hidden_states = self.activation_func(
+            F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
         )
+
+        # hidden_states = F.gelu(
+        #     F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
+        # )
 
         if self.pretraining_tp > 1:
             intermediate_output = torch.zeros_like(input_)
