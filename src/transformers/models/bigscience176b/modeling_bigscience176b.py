@@ -331,13 +331,13 @@ class BigScience176BMLP(nn.Module):
     def forward(self, hidden_states):
         input_ = hidden_states
 
-        # hidden_states = self.activation_func(
-        #     F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
-        # )
-
-        hidden_states = F.gelu(
-            F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
+        hidden_states = self.activation_func(
+            F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
         )
+
+        # hidden_states = F.gelu(
+        #     F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
+        # )
 
         if self.pretraining_tp > 1:
             intermediate_output = torch.zeros_like(input_)
