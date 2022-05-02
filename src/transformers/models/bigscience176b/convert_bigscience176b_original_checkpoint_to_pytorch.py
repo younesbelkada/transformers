@@ -17,6 +17,7 @@
 
 import argparse
 import os
+import json
 import re
 
 import torch
@@ -166,7 +167,8 @@ def convert_bigscience176b_checkpoint_to_pytorch(
         with open(pytorch_config_dump_path, "w", encoding="utf-8") as f:
             f.write(config.to_json_string())
         with open(os.path.join(pytorch_dump_folder_path, WEIGHTS_NAME+'.index.json'), "w", encoding="utf-8") as f:
-            f.write(index_dict.to_json_string())
+            json_config = json.dumps(index_dict, indent=2, sort_keys=True) + "\n"
+            f.write(json_config)
     else:
         model = BigScience176BModel(config)
 
