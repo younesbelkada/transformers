@@ -330,13 +330,13 @@ class BigScience176BMLP(nn.Module):
     def forward(self, hidden_states):
         input_ = hidden_states
 
-        # hidden_states = self.activation_func(
-        #     F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
-        # )
-
-        hidden_states = F.gelu(
-            F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
+        hidden_states = self.activation_func(
+            F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
         )
+
+        # hidden_states = F.gelu(
+        #     F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
+        # )
 
         if self.pretraining_tp > 1:
             intermediate_output = torch.zeros_like(input_)
@@ -684,7 +684,7 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
         self.word_embeddings_layernorm = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon).to(dtype)
 
         # Transformer blocks
-        self.h = nn.ModuleList([BigScience176BBlock(config, layer_number=i) for i in range(config.num_hidden_layers)])
+        self.h = nn.ModuleList([BigScience176BBlock(config, layer_number=i+1) for i in range(config.num_hidden_layers)])
 
         # Final Layer Norm
         self.ln_f = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon).to(dtype)
