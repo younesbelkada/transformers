@@ -33,7 +33,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         super().setUp()
         # self.path_tokenizer = "bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles"
         # self.tokenizer = AutoTokenizer.from_pretrained(self.path_tokenizer)
-        self.path_bigscience_model = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
+        self.path_bigscience_model = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers"
 
     # @unittest.skip("demonstrating skipping")
     @torch.no_grad()
