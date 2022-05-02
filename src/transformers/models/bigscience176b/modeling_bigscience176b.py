@@ -125,7 +125,8 @@ class BigScience176BAttention(nn.Module):
         # Layer-wise attention scaling
         self.layer_number = max(1, layer_number)
         coeff = self.layer_number
-        self.norm_factor = math.sqrt(self.head_dim) * coeff
+        self.hidden_size_per_attention_head = 64
+        self.norm_factor = math.sqrt(self.hidden_size_per_attention_head) * coeff
 
         # self.scale_mask_softmax = nn.Softmax(dim=1)
         self.scale_mask_softmax = ScaledSoftmax(
