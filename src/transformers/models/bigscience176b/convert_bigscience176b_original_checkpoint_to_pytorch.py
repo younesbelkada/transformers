@@ -119,7 +119,7 @@ def convert_bigscience176b_checkpoint_to_pytorch(
         file_names = os.listdir(bigscience176b_checkpoint_path)
         file_names = list(sorted(filter(lambda s: s.startswith("layer") and "model_00" in s, file_names)))
 
-        index_dict = {"weight_map":{}}
+        index_dict = {"weight_map":{}, "metadata":{}}
         # step_layers = len(file_names) // n_shards
         missing_keys = None
 
