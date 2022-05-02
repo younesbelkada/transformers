@@ -116,9 +116,9 @@ class BigScience176BConfig(PretrainedConfig):
         self,
         vocab_size=250880,
         seq_length=2048,
-        hidden_size=1024,
-        n_layer=24,
-        n_head=16,
+        hidden_size=14336,
+        n_layer=70,
+        n_head=112,
         n_inner=None,
         masked_softmax_fusion=True,
         layer_norm_epsilon=1e-5,  # TODO
@@ -133,8 +133,8 @@ class BigScience176BConfig(PretrainedConfig):
         hidden_dropout=0.0,
         attention_dropout=0.0,
         attention_softmax_in_fp32=True,
-        pretraining_tp=1,  # TODO
-        pretraining_pp=1,  # TODO
+        pretraining_tp=4,  # TODO
+        pretraining_pp=12,  # TODO
         dtype="float16",
         **kwargs,
     ):
