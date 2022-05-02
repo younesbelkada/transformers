@@ -685,7 +685,7 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
         self.word_embeddings_layernorm = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon).to(dtype)
 
         # Transformer blocks
-        self.h = nn.ModuleList([BigScience176BBlock(config, layer_number=i+1) for i in range(config.num_hidden_layers)])
+        self.h = nn.ModuleList([BigScience176BBlock(config, layer_number=i) for i in range(config.num_hidden_layers)])
 
         # Final Layer Norm
         self.ln_f = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon).to(dtype)
