@@ -1,7 +1,7 @@
 import unittest
 
 import torch
-import deepspeed
+# import deepspeed
 
 from transformers import AutoModel, AutoTokenizer
 from transformers.models.bigscience176b import BigScience176BLMHeadModel
