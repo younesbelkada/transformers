@@ -384,6 +384,7 @@ class BigScience176BBlock(nn.Module):
     def _build_alibi_tensor(max_seq_len, n_head, dtype=torch.bfloat16):
         # Based on https://github.com/ofirpress/attention_with_linear_biases/blob/a35aaca144e0eb6b789dfcb46784c4b8e31b7983/fairseq/models/transformer.py#L742
         """Returns tensor shaped (n_head, 1, max_seq_len)"""
+        print("seq length", max_seq_len)
 
         def get_slopes(n):
             def get_slopes_power_of_2(n):
