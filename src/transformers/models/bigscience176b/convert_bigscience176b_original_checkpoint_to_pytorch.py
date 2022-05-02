@@ -161,7 +161,7 @@ def convert_bigscience176b_checkpoint_to_pytorch(
             torch.save(tensors, os.path.join(pytorch_dump_folder_path, "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))))
             for key in tensors.keys():
                 if key not in index_dict["weight_map"]:
-                    index_dict["weight_map"][key] = os.path.join(pytorch_dump_folder_path, "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5)))
+                    index_dict["weight_map"][key] =  "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))
         config = BigScience176BConfig()
         pytorch_config_dump_path = pytorch_dump_folder_path + "/" + CONFIG_NAME
         with open(pytorch_config_dump_path, "w", encoding="utf-8") as f:
