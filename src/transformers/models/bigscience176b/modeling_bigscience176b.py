@@ -310,10 +310,24 @@ class BigScience176BAttention(nn.Module):
         context_layer = context_layer.view(*new_context_layer_shape)
         print("Context layer | layer nb : {}".format(self.layer_number), context_layer)
 
+        if self.layer_number == 1:
+            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "context_layer_after_1.pt")
+            if not os.path.exists(output_file_name):
+                torch.save(context_layer, output_file_name)
 
         # =================
         # Output. [sq, b, h]
         # =================
+
+        if self.layer_number == 1:
+            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "dense_weight_1.pt")
+            if not os.path.exists(output_file_name):
+                torch.save(self.dense.weight, output_file_name)
+        
+        if self.layer_number == 1:
+            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "dense_bias_1.pt")
+            if not os.path.exists(output_file_name):
+                torch.save(self.dense.bias, output_file_name)
 
         # aggregate results across tp ranks. See here: https://github.com/pytorch/pytorch/issues/76232
         if self.pretraining_tp > 1:
