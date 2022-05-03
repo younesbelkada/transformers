@@ -157,6 +157,7 @@ class BigScience176BAttention(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [sq, b, h]
+        print("Input Attention | layer nb : {}".format(self.layer_number), hidden_states)
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
         bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
@@ -164,6 +165,9 @@ class BigScience176BAttention(nn.Module):
         output_bias = self.query_key_value.bias if self.skip_bias_add_qkv else None
 
         mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
+        print("Mixed x layer | layer nb : {}".format(self.layer_number), mixed_x_layer)
+        
+
 
         # [sq, b, (np * 3 * hn)] --> [sq, b, np, 3 * hn]
         new_tensor_shape = mixed_x_layer.size()[:-1] + (self.num_heads, 3 * self.head_dim)
@@ -171,6 +175,8 @@ class BigScience176BAttention(nn.Module):
 
         # [sq, b, np, 3 * hn] --> 3 [sq, b, np, hn]
         (query_layer, key_layer, value_layer) = split_tensor_along_last_dim(mixed_x_layer, 3)
+        print("Query layer | layer nb : {}".format(self.layer_number), query_layer)
+        print("Key layer | layer nb : {}".format(self.layer_number), key_layer)
 
         if layer_past is not None:
             past_key, past_value = layer_past
@@ -212,8 +218,10 @@ class BigScience176BAttention(nn.Module):
         )
 
         # change view to [b, np, sq, sk]
+        print("Matmul | layer nb : {}".format(self.layer_number), matmul_result)
 
         attention_scores = matmul_result.view(*output_size)
+        print("Attenstion scores | layer nb : {}".format(self.layer_number), attention_scores)
 
         # ==================================================
         # Update attention mask for inference. [b, np, sq, sk]
@@ -250,8 +258,9 @@ class BigScience176BAttention(nn.Module):
         attention_probs = self.scale_mask_softmax(
             attention_scores, attention_mask
         )
+        print("Attention probs | layer nb : {}".format(self.layer_number), attention_probs)
         attention_probs = self.attention_dropout(attention_probs)
-
+        print("Is dropout enabled? : {}".format(self.attention_dropout.training))
 
         # =========================
         # Context layer. [sq, b, hp]
@@ -282,6 +291,7 @@ class BigScience176BAttention(nn.Module):
         new_context_layer_shape = context_layer.size()[:-2] + (self.hidden_size,)
 
         context_layer = context_layer.view(*new_context_layer_shape)
+        print("Context layer | layer nb : {}".format(self.layer_number), context_layer)
 
 
         # =================
@@ -312,7 +322,7 @@ class BigScience176BAttention(nn.Module):
         outputs = (output, present)
         if output_attentions:
             outputs += (None,)  # TODO not implemented yet
-
+        print("Outputs | layer nb : {}".format(self.layer_number), output)
         return outputs, output_bias  # a, present, (attentions)
 
 
