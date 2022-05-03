@@ -16,6 +16,7 @@
 """PyTorch BigScience176B model."""
 
 import math
+import os
 from typing import Tuple
 
 import torch
@@ -157,6 +158,10 @@ class BigScience176BAttention(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [sq, b, h]
+        if self.layer_number == 1:
+            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "input_att_layer_1.pt")
+            if not os.path.exists(output_file_name):
+                torch.save(hidden_states, output_file_name)
         print("Input Attention | layer nb : {}".format(self.layer_number), hidden_states)
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
@@ -255,9 +260,17 @@ class BigScience176BAttention(nn.Module):
         #     self.mask_func(attention_scores, attention_mask) if attention_mask is not None else attention_scores
         # )
         # attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
+        if self.layer_number == 1:
+            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "attn_scores_layer_1.pt")
+            if not os.path.exists(output_file_name):
+                torch.save(attention_scores, output_file_name)
         attention_probs = self.scale_mask_softmax(
             attention_scores, attention_mask
         )
+        if self.layer_number == 1:
+            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "attn_probs_layer_1.pt")
+            if not os.path.exists(output_file_name):
+                torch.save(attention_probs, output_file_name)
         print("Attention probs | layer nb : {}".format(self.layer_number), attention_probs)
         attention_probs = self.attention_dropout(attention_probs)
         print("Is dropout enabled? : {}".format(self.attention_dropout.training))
