@@ -40,23 +40,8 @@ class BigScienceEmbeddingTest(unittest.TestCase):
     def test_logits(self):
         # TODO ifelse device
         model = BigScience176BLMHeadModel.from_pretrained(self.path_bigscience_model, use_cache=False)
-        model = model.cuda()
-        device_map = {
-            0: [0, 1, 2, 3, 4, 5],
-            1: [6, 7, 8, 9, 10, 11],
-            2: [12, 13, 14, 15, 16, 17],
-            3: [18, 19, 20, 21, 22, 23],
-        }
-        # device_map = {
-        #     0: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-        #     1: [10, 11, 12, 13, 14, 15, 16, 17, 18],
-        #     2: [19, 20, 21, 22, 23, 24, 25, 26, 27],
-        #     3: [28, 29, 30, 31, 32, 33, 34, 35, 36],
-        #     4: [37, 38, 39, 40, 41, 42, 43, 44, 45],
-        #     5: [46, 47, 48, 49, 50, 51, 52, 53, 54],
-        #     6: [55, 56, 57, 58, 59, 60, 61, 62, 63],
-        #     8: [64, 65, 66, 67, 68, 69, 70],
-        # }
+        # model = model.cuda()
+        device_map = {[0]:[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]}
         model.parallelize(device_map)
         model.eval()
 
