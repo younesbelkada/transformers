@@ -24,6 +24,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch import Tensor, nn
 from torch.nn import CrossEntropyLoss
+from transformers.models.bigscience176b.logits_utils import save_logits
 
 from ...file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, CausalLMOutputWithCrossAttentions
@@ -418,7 +419,7 @@ class BigScience176BBlock(nn.Module):
         self.alibi = self._build_alibi_tensor(config.seq_length, config.n_head, dtype=dtype)
         self.self_attention = BigScience176BAttention(config, layer_number=layer_number)
         self.post_attention_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon).to(dtype)
-
+        self.layer_number = layer_number
         self.mlp = BigScience176BMLP(config)
 
         self.apply_residual_connection_post_layernorm = config.apply_residual_connection_post_layernorm
@@ -469,7 +470,7 @@ class BigScience176BBlock(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [b, s, h]
-
+        save_logits(hidden_states.__name__, hidden_states, self.layer_number, "transformers")
         # Layer norm at the beginning of the transformer layer.
         layernorm_output = self.input_layernorm(hidden_states)
 
@@ -533,6 +534,7 @@ class BigScience176BBlock(nn.Module):
         else:
             outputs = (output,) + outputs[1:]
 
+        save_logits(output.__name__, output, self.layer_number, "transformers")
         return outputs  # hidden_states, present, attentions
 
 
