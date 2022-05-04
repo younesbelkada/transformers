@@ -12,6 +12,8 @@ def torch_assert_equal(actual, expected, **kwargs):
     else:
         return torch.allclose(actual, expected, rtol=0.0, atol=0.0)
 
+print("============= Testing on rank 0 ==============")
+
 path_meg_logits = "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_rank_0"
 path_tr_logits = "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_tr"
 
@@ -36,3 +38,28 @@ for folder in meg_layers_to_test:
             print("Failed for {} | layer {} ".format(tensors, folder))
             # raise
 
+print("============= Testing on rank 1 ==============")
+
+path_meg_logits = "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_rank_1"
+path_tr_logits = "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_tr"
+
+meg_layers_to_test = [path.lower() for path in os.listdir(path_meg_logits)]
+tr_layers_to_test = [path.lower() for path in os.listdir(path_tr_logits)]
+
+assert len(list(set(meg_layers_to_test) & set(meg_layers_to_test))) == len(meg_layers_to_test)
+
+meg_layers_to_test = os.listdir(path_meg_logits)
+tr_layers_to_test = os.listdir(path_tr_logits)
+
+for folder in meg_layers_to_test:
+    print("Testing {}".format(folder))
+    tensors_to_test = os.listdir(os.path.join(path_meg_logits, folder))
+    for tensors in tensors_to_test:
+        meg_logits = torch.load(os.path.join(path_meg_logits, folder, tensors), map_location=device)
+        tr_logits = torch.load(os.path.join(path_tr_logits, folder.lower(), tensors), map_location=device)
+        try:
+            torch_assert_equal(meg_logits, tr_logits)
+            print("Success for {} | layer {} ".format(tensors, folder))
+        except:
+            print("Failed for {} | layer {} ".format(tensors, folder))
+            # raise
