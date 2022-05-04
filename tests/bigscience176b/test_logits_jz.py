@@ -5,6 +5,7 @@ import torch
 
 from transformers import AutoModel, AutoTokenizer
 from transformers.models.bigscience176b import BigScience176BLMHeadModel
+from transformers.models.bigscience176b.logits_utils import save_logits
 
 
 class BigScienceEmbeddingTest(unittest.TestCase):
@@ -50,48 +51,6 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         # a = torch.randn(1, 1, 20, 20)
         # ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to("cuda:0")
         ATTN_MASK = torch.triu(torch.ones(1, 1, 20, 20), diagonal=1).to("cuda:0").to(model.dtype)
-        # ATTN_MASK = torch.tril(torch.ones(1, 1, 20, 20), diagonal=-1).to("cuda:0").to(model.dtype)
-        
-        # ATTN_MASK = torch.tensor([[[[False,  True,  True,  True,  True,  True,  True,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False,  True,  True,  True,  True,  True,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False,  True,  True,  True,  True,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False,  True,  True,  True,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False,  True,  True,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False,  True,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False,  True,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False,  True,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False,  True,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         True,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False,  True,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False,  True,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False,  True,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False,  True,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False,  True,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False, False,  True,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False, False, False,  True,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False, False, False, False,  True,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False, False, False, False, False,  True],
-        #     [False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False, False, False, False, False, False]]]],device='cuda:0')
 
         input_tensor = torch.LongTensor(EXAMPLE_IDS).to("cuda:0")
 
@@ -105,7 +64,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         print("Some values: ", logits[0,:, 0])
         print("Argmax: ", torch.argmax(logits, dim=-1))
         torch.save(logits, "/gpfswork/rech/six/uan68tv/data/tensors_to_test/logits_1_tr_apex_cu115.pt")
-
+        save_logits('final_logit', logits, "after_final_emb", "transformers")
         EXAMPLE_IDS = [[144252, 2, 2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586,  35433, 2, 77, 132619,   3478,    368, 109586,  35433]]
 
         input_tensor = torch.LongTensor(EXAMPLE_IDS).to("cuda:0")
@@ -119,6 +78,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         print("Mean: ", logits.mean(dim=-1))
         print("Some values: ", logits[0,:, 0])
         print("Argmax: ", torch.argmax(logits, dim=-1))
+        save_logits('final_logit', logits, "after_final_emb", "transformers")
 
 
 

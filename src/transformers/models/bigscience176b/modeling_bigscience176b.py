@@ -922,7 +922,9 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
+        # save_logits('hidden_states', hidden_states, "after_block", "transformers")
         hidden_states = self.ln_f(hidden_states)
+        save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
 
         hidden_states = hidden_states.view(output_shape)
         # Add last hidden state
