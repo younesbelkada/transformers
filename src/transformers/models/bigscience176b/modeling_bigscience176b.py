@@ -470,7 +470,7 @@ class BigScience176BBlock(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [b, s, h]
-        save_logits(hidden_states.__name__, hidden_states, self.layer_number, "transformers")
+        save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
         # Layer norm at the beginning of the transformer layer.
         layernorm_output = self.input_layernorm(hidden_states)
 
@@ -534,7 +534,7 @@ class BigScience176BBlock(nn.Module):
         else:
             outputs = (output,) + outputs[1:]
 
-        save_logits(output.__name__, output, self.layer_number, "transformers")
+        save_logits('output', output, self.layer_number, "transformers")
         return outputs  # hidden_states, present, attentions
 
 
