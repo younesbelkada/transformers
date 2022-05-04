@@ -275,16 +275,20 @@ SPECIAL_MODULE_TO_TEST_MAP = {
     "modeling_tf_utils.py": ["test_modeling_tf_common.py", "utils/test_modeling_tf_core.py"],
     "modeling_utils.py": ["test_modeling_common.py", "utils/test_offline.py"],
     "models/auto/modeling_auto.py": [
-        "auto/test_modeling_auto.py",
-        "auto/test_modeling_tf_pytorch.py",
-        "bort/test_modeling_bort.py",
-        "dit/test_modeling_dit.py",
+        "models/auto/test_modeling_auto.py",
+        "models/auto/test_modeling_tf_pytorch.py",
+        "models/bort/test_modeling_bort.py",
+        "models/dit/test_modeling_dit.py",
     ],
-    "models/auto/modeling_flax_auto.py": "auto/test_modeling_flax_auto.py",
+    "models/auto/modeling_flax_auto.py": "models/auto/test_modeling_flax_auto.py",
     "models/auto/modeling_tf_auto.py": [
-        "auto/test_modeling_tf_auto.py",
-        "auto/test_modeling_tf_pytorch.py",
-        "bort/test_modeling_tf_bort.py",
+        "models/auto/test_modeling_tf_auto.py",
+        "models/auto/test_modeling_tf_pytorch.py",
+        "models/bort/test_modeling_tf_bort.py",
+    ],
+    "models/gpt2/modeling_gpt2.py": [
+        "models/gpt2/test_modeling_gpt2.py",
+        "models/megatron_gpt2/test_modeling_megatron_gpt2.py",
     ],
     "models/bigscience176b/modeling_bigscience176b.py": [
         "bigscience176b/test_embeddings_bigscience176b.py",
@@ -358,7 +362,7 @@ def module_to_test_file(module_fname):
     elif len(splits) > 0 and splits[0] == "utils":
         default_test_file = f"tests/utils/test_utils_{module_name}"
     elif len(splits) > 4 and splits[2] == "models":
-        default_test_file = f"tests/{splits[3]}/test_{module_name}"
+        default_test_file = f"tests/models/{splits[3]}/test_{module_name}"
     elif len(splits) > 2 and splits[2].startswith("generation"):
         default_test_file = f"tests/generation/test_{module_name}"
     elif len(splits) > 2 and splits[2].startswith("trainer"):
