@@ -20,12 +20,15 @@ tr_layers_to_test = [path.lower() for path in os.listdir(path_tr_logits)]
 
 assert len(list(set(meg_layers_to_test) & set(meg_layers_to_test))) == len(meg_layers_to_test)
 
+meg_layers_to_test = os.listdir(path_meg_logits)
+tr_layers_to_test = os.listdir(path_tr_logits)
+
 for folder in meg_layers_to_test:
     print("Testing {}".format(folder))
     tensors_to_test = os.listdir(os.path.join(path_meg_logits, folder))
     for tensors in tensors_to_test:
         meg_logits = torch.load(os.path.join(path_meg_logits, folder, tensors), map_location=device)
-        tr_logits = torch.load(os.path.join(path_tr_logits, folder, tensors), map_location=device)
+        tr_logits = torch.load(os.path.join(path_tr_logits, folder.lower(), tensors), map_location=device)
         try:
             torch_assert_equal(meg_logits, tr_logits)
             print("Success for {} | layer {} ".format(tensors, folder))
