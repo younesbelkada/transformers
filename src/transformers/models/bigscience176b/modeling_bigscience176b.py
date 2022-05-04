@@ -924,9 +924,10 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
 
         # save_logits('hidden_states', hidden_states, "after_block", "transformers")
         hidden_states = self.ln_f(hidden_states)
-        save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
 
         hidden_states = hidden_states.view(output_shape)
+        save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
+
         # Add last hidden state
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
