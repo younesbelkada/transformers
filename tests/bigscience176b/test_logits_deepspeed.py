@@ -6,14 +6,14 @@ import deepspeed
 import os
 import torch
 
-parser = argparse.ArgumentParser(description='Run some evaluation on a pretrained model')
+# parser = argparse.ArgumentParser(description='Run some evaluation on a pretrained model')
 
-parser.add_argument('--nvme_path', type=str, 
-                    help='nvme path', required=True)
+# parser.add_argument('--nvme_path', type=str, 
+#                     help='nvme path', required=True)
 
-args = parser.parse_args()
+# args = parser.parse_args()
 
-jobscratch_path = args.nvme_path
+# jobscratch_path = args.nvme_path
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # To avoid warnings about parallelism in tokenizers
 
 # distributed setup
@@ -32,7 +32,6 @@ model_hidden_size = config.hidden_size
     # batch size has to be divisible by world_size, but can be bigger than world_size
 train_batch_size = 1 * world_size
 
-print("jobscratch path:", jobscratch_path)
 # ds_config notes
 #
 # - enable bf16 if you use Ampere or higher GPU - this will run in mixed precision and will be
@@ -64,14 +63,6 @@ ds_config = {
     },
     "zero_optimization": {
         "stage": 3,
-        "offload_param": {
-            "device": "nvme",
-            "nvme_path": jobscratch_path,
-            "pin_memory": True,
-            "buffer_count": 6,
-            "buffer_size": 1e8,
-            "max_in_cpu": 1e9
-        },
         "aio": {
             "block_size": 262144,
             "queue_depth": 32,
