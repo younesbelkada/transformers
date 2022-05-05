@@ -95,7 +95,7 @@ ds_config = {
 dschf = HfDeepSpeedConfig(ds_config)  # keep this object alive
 
 # # now a model can be loaded.
-model = BigScience176BLMHeadModel.from_pretrained(model_name)#, low_cpu_mem_usage=True)
+model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False)#, low_cpu_mem_usage=True)
 
 # initialise Deepspeed ZeRO and store only the engine object
 ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
