@@ -19,8 +19,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"  # To avoid warnings about parall
 # distributed setup
 local_rank = int(os.getenv("LOCAL_RANK", "0"))
 world_size = int(os.getenv("WORLD_SIZE", "1"))
-torch.cuda.set_device(local_rank)
-deepspeed.init_distributed()
+# torch.cuda.set_device(local_rank)
+# deepspeed.init_distributed()
 
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
 jobscratch_path = "/gpfsssd/jobscratch/"
