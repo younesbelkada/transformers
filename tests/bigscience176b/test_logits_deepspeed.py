@@ -6,6 +6,14 @@ import deepspeed
 import os
 import torch
 
+parser = argparse.ArgumentParser(description='Run some evaluation on a pretrained model')
+
+parser.add_argument('--nvme_path', type=str, 
+                    help='nvme path', required=True)
+
+args = parser.parse_args()
+
+jobscratch_path = args.nvme_path
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # To avoid warnings about parallelism in tokenizers
 
 # distributed setup
@@ -15,15 +23,16 @@ torch.cuda.set_device(local_rank)
 deepspeed.init_distributed()
 
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
-#model_name = "bigscience/T0_3B"
+jobscratch_path = "/gpfsssd/jobscratch/"
+    #model_name = "bigscience/T0_3B"
 
 config = AutoConfig.from_pretrained(model_name)
 model_hidden_size = config.hidden_size
 
-# batch size has to be divisible by world_size, but can be bigger than world_size
+    # batch size has to be divisible by world_size, but can be bigger than world_size
 train_batch_size = 1 * world_size
-print(os.environ['SLURM_JOBID'])
 
+print("jobscratch path:", jobscratch_path)
 # ds_config notes
 #
 # - enable bf16 if you use Ampere or higher GPU - this will run in mixed precision and will be
