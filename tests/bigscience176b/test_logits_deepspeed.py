@@ -23,7 +23,7 @@ world_size = int(os.getenv("WORLD_SIZE", "1"))
 # deepspeed.init_distributed()
 
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
-jobscratch_path = "/gpfsssd/jobscratch/"
+# jobscratch_path = "/gpfsssd/jobscratch/"
     #model_name = "bigscience/T0_3B"
 
 config = AutoConfig.from_pretrained(model_name)
