@@ -159,10 +159,6 @@ class BigScience176BAttention(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [sq, b, h]
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "input_att_layer_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(hidden_states, output_file_name)
         print("Input Attention | layer nb : {}".format(self.layer_number), hidden_states)
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
@@ -261,17 +257,9 @@ class BigScience176BAttention(nn.Module):
         #     self.mask_func(attention_scores, attention_mask) if attention_mask is not None else attention_scores
         # )
         # attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "attn_scores_layer_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(attention_scores, output_file_name)
         attention_probs = self.scale_mask_softmax(
             attention_scores, attention_mask
         )
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "attn_probs_layer_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(attention_probs, output_file_name)
         print("Attention probs | layer nb : {}".format(self.layer_number), attention_probs)
         attention_probs = self.attention_dropout(attention_probs)
         print("Is dropout enabled? : {}".format(self.attention_dropout.training))
@@ -294,10 +282,6 @@ class BigScience176BAttention(nn.Module):
 
         # matmul: [b * np, sq, hn]
         context_layer = torch.bmm(attention_probs, value_layer.transpose(0, 1))
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "context_layer_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(context_layer, output_file_name)
 
         # change view [b, np, sq, hn]
         context_layer = context_layer.view(*output_size)
@@ -311,24 +295,9 @@ class BigScience176BAttention(nn.Module):
         context_layer = context_layer.view(*new_context_layer_shape)
         print("Context layer | layer nb : {}".format(self.layer_number), context_layer)
 
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "context_layer_after_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(context_layer, output_file_name)
-
         # =================
         # Output. [sq, b, h]
         # =================
-
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "dense_weight_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(self.dense.weight, output_file_name)
-        
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "dense_bias_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(self.dense.bias, output_file_name)
 
         # aggregate results across tp ranks. See here: https://github.com/pytorch/pytorch/issues/76232
         if self.pretraining_tp > 1:
@@ -353,11 +322,7 @@ class BigScience176BAttention(nn.Module):
 
         outputs = (output, present)
         if output_attentions:
-            outputs += (None,)  # TODO not implemented yet
-        if self.layer_number == 1:
-            output_file_name = os.path.join("/gpfswork/rech/six/uan68tv/data/tensors_to_test/transformers-logits", "output_attn_layer_1.pt")
-            if not os.path.exists(output_file_name):
-                torch.save(output, output_file_name)
+            outputs += (None,)  # TODO not implemented y
         print("Outputs | layer nb : {}".format(self.layer_number), output)
         return outputs, output_bias  # a, present, (attentions)
 
