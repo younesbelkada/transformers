@@ -31,6 +31,7 @@ model_hidden_size = config.hidden_size
 
     # batch size has to be divisible by world_size, but can be bigger than world_size
 train_batch_size = 1 * world_size
+print(config)
 
 # ds_config notes
 #
@@ -105,16 +106,7 @@ ds_engine.module.eval()  # inference
 # # If you use more GPUs adjust for more.
 # # And of course if you have just one input to process you then need to pass the same string to both gpus
 # # If you use only one GPU, then you will have only rank 0.
-# rank = torch.distributed.get_rank()
-# if rank == 0:
-#     text_in = "Is this review positive or negative? Review: this is the best cast iron skillet you will ever buy"
-# elif rank == 1:
-#     text_in = "Is this review positive or negative? Review: this is the worst restaurant ever"
 
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
-# inputs = tokenizer.encode(text_in, return_tensors="pt").to(device=local_rank)
-# from transformers.deepspeed import is_deepspeed_zero3_enabled
-# print(f"Deepspeed 3 is enabled: {is_deepspeed_zero3_enabled()}")
 
 EXAMPLE_IDS = [[2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]]
 ATTN_MASK = torch.triu(torch.ones(1, 1, 20, 20), diagonal=1).to(model.dtype)
