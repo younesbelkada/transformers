@@ -19,8 +19,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"  # To avoid warnings about parall
 # distributed setup
 local_rank = int(os.getenv("LOCAL_RANK", "0"))
 world_size = int(os.getenv("WORLD_SIZE", "1"))
-# torch.cuda.set_device(local_rank)
-# deepspeed.init_distributed()
+torch.cuda.set_device(local_rank)
+deepspeed.init_distributed()
 
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
 # jobscratch_path = "/gpfsssd/jobscratch/"
@@ -55,43 +55,43 @@ print("jobscratch path:", jobscratch_path)
 
 # keeping the same format as json for consistency, except it uses lower case for true/false
 # fmt: off
-# ds_config = {
-#     "fp16": {
-#         "enabled": True
-#     },
-#     "bf16": {
-#         "enabled": False
-#     },
-#     "zero_optimization": {
-#         "stage": 3,
-#         "offload_param": {
-#             "device": "nvme",
-#             "nvme_path": "",
-#             "pin_memory": True,
-#             "buffer_count": 6,
-#             "buffer_size": 1e8,
-#             "max_in_cpu": 1e9
-#         },
-#         "aio": {
-#             "block_size": 262144,
-#             "queue_depth": 32,
-#             "thread_count": 1,
-#             "single_submit": False,
-#             "overlap_events": True
-#         },
-#         "overlap_comm": True,
-#         "contiguous_gradients": True,
-#         "reduce_bucket_size": model_hidden_size * model_hidden_size,
-#         "stage3_prefetch_bucket_size": 0.1 * model_hidden_size * model_hidden_size,
-#         "stage3_max_live_parameters": 1e8,
-#         "stage3_max_reuse_distance": 1e8,
-#         "stage3_param_persistence_threshold": 10 * model_hidden_size
-#     },
-#     "steps_per_print": 2000,
-#     "train_batch_size": train_batch_size,
-#     "train_micro_batch_size_per_gpu": 1,
-#     "wall_clock_breakdown": False
-# }
+ds_config = {
+    "fp16": {
+        "enabled": True
+    },
+    "bf16": {
+        "enabled": False
+    },
+    "zero_optimization": {
+        "stage": 3,
+        "offload_param": {
+            "device": "nvme",
+            "nvme_path": jobscratch_path,
+            "pin_memory": True,
+            "buffer_count": 6,
+            "buffer_size": 1e8,
+            "max_in_cpu": 1e9
+        },
+        "aio": {
+            "block_size": 262144,
+            "queue_depth": 32,
+            "thread_count": 1,
+            "single_submit": False,
+            "overlap_events": True
+        },
+        "overlap_comm": True,
+        "contiguous_gradients": True,
+        "reduce_bucket_size": model_hidden_size * model_hidden_size,
+        "stage3_prefetch_bucket_size": 0.1 * model_hidden_size * model_hidden_size,
+        "stage3_max_live_parameters": 1e8,
+        "stage3_max_reuse_distance": 1e8,
+        "stage3_param_persistence_threshold": 10 * model_hidden_size
+    },
+    "steps_per_print": 2000,
+    "train_batch_size": train_batch_size,
+    "train_micro_batch_size_per_gpu": 1,
+    "wall_clock_breakdown": False
+}
 # # fmt: on
 
 # # next line instructs transformers to partition the model directly over multiple gpus using
@@ -101,37 +101,35 @@ print("jobscratch path:", jobscratch_path)
 # #
 # # otherwise the model will first be loaded normally and only partitioned at forward time which is
 # # less efficient and when there is little CPU RAM may fail
-# dschf = HfDeepSpeedConfig(ds_config)  # keep this object alive
+dschf = HfDeepSpeedConfig(ds_config)  # keep this object alive
 
 # # now a model can be loaded.
-# model = BigScience176BLMHeadModel.from_pretrained(model_name)#, low_cpu_mem_usage=True)
+model = BigScience176BLMHeadModel.from_pretrained(model_name)#, low_cpu_mem_usage=True)
 
-# # initialise Deepspeed ZeRO and store only the engine object
-# ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
-# ds_engine.module.eval()  # inference
+# initialise Deepspeed ZeRO and store only the engine object
+ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
+ds_engine.module.eval()  # inference
 
 # # Deepspeed ZeRO can process unrelated inputs on each GPU. So for 2 gpus you process 2 inputs at once.
 # # If you use more GPUs adjust for more.
 # # And of course if you have just one input to process you then need to pass the same string to both gpus
 # # If you use only one GPU, then you will have only rank 0.
-# # rank = torch.distributed.get_rank()
-# # if rank == 0:
-# #     text_in = "Is this review positive or negative? Review: this is the best cast iron skillet you will ever buy"
-# # elif rank == 1:
-# #     text_in = "Is this review positive or negative? Review: this is the worst restaurant ever"
+# rank = torch.distributed.get_rank()
+# if rank == 0:
+#     text_in = "Is this review positive or negative? Review: this is the best cast iron skillet you will ever buy"
+# elif rank == 1:
+#     text_in = "Is this review positive or negative? Review: this is the worst restaurant ever"
 
-# # tokenizer = AutoTokenizer.from_pretrained(model_name)
-# # inputs = tokenizer.encode(text_in, return_tensors="pt").to(device=local_rank)
-# #from transformers.deepspeed import is_deepspeed_zero3_enabled
-# #print(f"Deepspeed 3 is enabled: {is_deepspeed_zero3_enabled()}")
-# EXAMPLE_IDS = [[2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]]
-# ATTN_MASK = torch.triu(torch.ones(1, 1, 20, 20), diagonal=1).to(model.dtype)
+# tokenizer = AutoTokenizer.from_pretrained(model_name)
+# inputs = tokenizer.encode(text_in, return_tensors="pt").to(device=local_rank)
+# from transformers.deepspeed import is_deepspeed_zero3_enabled
+# print(f"Deepspeed 3 is enabled: {is_deepspeed_zero3_enabled()}")
 
-# with torch.no_grad():
-#     input_tensor = torch.LongTensor(EXAMPLE_IDS)
-#     logits = ds_engine.module.forward(input_tensor, attention_mask=ATTN_MASK).logits
+EXAMPLE_IDS = [[2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]]
+ATTN_MASK = torch.triu(torch.ones(1, 1, 20, 20), diagonal=1).to(model.dtype)
 
-# print(logits)
+with torch.no_grad():
+    input_tensor = torch.LongTensor(EXAMPLE_IDS)
+    logits = ds_engine.module.forward(input_tensor, attention_mask=ATTN_MASK).logits
 
-# text_out = tokenizer.decode(outputs[0], skip_special_tokens=True)
-# print(f"rank{rank}:\n   in={text_in}\n  out={text_out}")
+print(logits)
