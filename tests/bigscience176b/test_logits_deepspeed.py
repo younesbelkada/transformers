@@ -101,7 +101,7 @@ EXAMPLE_IDS = [[132619,   3478,    368, 109586,  35433, 2,   2175,  23714,  7317
 ATTN_MASK = torch.triu(torch.ones(1, 1, 20, 20), diagonal=1).to(model.dtype)
 
 with torch.no_grad():
-    input_tensor = torch.LongTensor(EXAMPLE_IDS)
-    logits = ds_engine.module.forward(input_tensor, attention_mask=ATTN_MASK).logits
+    input_tensor = torch.LongTensor(EXAMPLE_IDS).to(device=local_rank)
+    logits = ds_engine.module.forward(input_tensor, attention_mask=ATTN_MASK.to(device=local_rank)).logits
 
 print(logits)
