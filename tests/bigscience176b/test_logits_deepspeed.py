@@ -1,4 +1,3 @@
-import argparse
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSeq2SeqLM
 from transformers.models.bigscience176b import BigScience176BLMHeadModel
 from transformers.deepspeed import HfDeepSpeedConfig
@@ -6,14 +5,6 @@ import deepspeed
 import os
 import torch
 
-# parser = argparse.ArgumentParser(description='Run some evaluation on a pretrained model')
-
-# parser.add_argument('--nvme_path', type=str, 
-#                     help='nvme path', required=True)
-
-# args = parser.parse_args()
-
-# jobscratch_path = args.nvme_path
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # To avoid warnings about parallelism in tokenizers
 
 # distributed setup
@@ -23,15 +14,12 @@ torch.cuda.set_device(local_rank)
 deepspeed.init_distributed()
 
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
-# jobscratch_path = "/gpfsssd/jobscratch/"
-    #model_name = "bigscience/T0_3B"
 
 config = AutoConfig.from_pretrained(model_name)
 model_hidden_size = config.hidden_size
 
     # batch size has to be divisible by world_size, but can be bigger than world_size
 train_batch_size = 1 * world_size
-print(config)
 
 # ds_config notes
 #
@@ -96,7 +84,7 @@ ds_config = {
 dschf = HfDeepSpeedConfig(ds_config)  # keep this object alive
 
 # # now a model can be loaded.
-model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False)#, low_cpu_mem_usage=True)
+model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False)
 
 # initialise Deepspeed ZeRO and store only the engine object
 ds_engine = deepspeed.initialize(model=model, config_params=ds_config)[0]
@@ -108,7 +96,8 @@ ds_engine.module.eval()  # inference
 # # If you use only one GPU, then you will have only rank 0.
 
 
-EXAMPLE_IDS = [[2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]]
+# EXAMPLE_IDS = [[2175,  23714,  73173, 144252, 2, 77, 132619, 3478, 368, 109586, 35433, 2, 2175,  23714,  73173, 144252, 2, 2175, 23714, 73173]]
+EXAMPLE_IDS = [[132619,   3478,    368, 109586,  35433, 2,   2175,  23714,  73173, 144252,	 2,   2175,  23714,  73173, 144252,	 2,     77, 132619, 3478,    368]]
 ATTN_MASK = torch.triu(torch.ones(1, 1, 20, 20), diagonal=1).to(model.dtype)
 
 with torch.no_grad():

@@ -447,7 +447,6 @@ class BigScience176BBlock(nn.Module):
                     + get_slopes(2 * closest_power_of_2)[0::2][: n - closest_power_of_2]
                 )
 
-        print("slopes :", get_slopes(n_head))
         slopes = torch.Tensor(get_slopes(n_head))
         alibi = slopes.unsqueeze(1).unsqueeze(1) * torch.arange(max_seq_len).unsqueeze(0).unsqueeze(0).expand(
             n_head, -1, -1
