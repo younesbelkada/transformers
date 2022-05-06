@@ -363,7 +363,7 @@ class BigScience176BMLP(nn.Module):
         else:
             # intermediate_output = F.linear(hidden_states, self.dense_4h_to_h.weight)
             intermediate_output = self.dense_4h_to_h(hidden_states)
-            output_bias = self.dense_4h_to_h.bias if self.skip_bias_add else None
+            output_bias = self.dense_h_to_4h_bias if self.skip_bias_add else None
             return intermediate_output, output_bias
 
         if not self.skip_bias_add:
