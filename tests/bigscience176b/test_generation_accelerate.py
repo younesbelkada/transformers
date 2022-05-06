@@ -11,7 +11,7 @@ config = AutoConfig.from_pretrained(model_name)
 # model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False, low_cpu_mem_usage=True)
 with init_empty_weights():
     # model = BigScience176BLMHeadModel.from_config(config)
-    model = BigScience176BLMHeadModel.from_pretrained(config)
+    model = BigScience176BLMHeadModel.from_pretrained(model_name)
 
 print("successfully loaded model")
 
