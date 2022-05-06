@@ -147,6 +147,8 @@ class BigScience176BAttention(nn.Module):
         self.skip_bias_add = config.skip_bias_add
         self.skip_bias_add_qkv = config.skip_bias_add_qkv
         self.attention_dropout = torch.nn.Dropout(config.attention_dropout)
+        self.indentity = nn.Identity()
+
 
     def forward(
         self,
@@ -328,6 +330,7 @@ class BigScience176BMLP(nn.Module):
         # self.activation_func = F.gelu
         self.activation_func = bias_gelu_impl
         self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
+        self.indentity = nn.Identity()
 
     def forward(self, hidden_states):
         input_ = hidden_states
@@ -381,6 +384,8 @@ class BigScience176BBlock(nn.Module):
         self.bias_dropout_fusion = config.bias_dropout_fusion
         self.hidden_dropout = config.hidden_dropout
 
+        self.identity = nn.Identity()
+
     @staticmethod
     def _build_alibi_tensor(max_seq_len, n_head, dtype=torch.bfloat16):
         # Based on https://github.com/ofirpress/attention_with_linear_biases/blob/a35aaca144e0eb6b789dfcb46784c4b8e31b7983/fairseq/models/transformer.py#L742
@@ -426,6 +431,7 @@ class BigScience176BBlock(nn.Module):
         # hidden_states: [b, s, h]
         save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
         # Layer norm at the beginning of the transformer layer.
+        # hidden_states = self.identity(hidden_states) # hack
         layernorm_output = self.input_layernorm(hidden_states)
 
         # Self attention.
@@ -470,6 +476,7 @@ class BigScience176BBlock(nn.Module):
         print(residual.device)
         print(attention_output.device)
         print(attention_bias.expand_as(residual).device)
+        residual = self.self_attention.identity(residual)
         layernorm_input = bias_dropout_add_func(
             attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
         )
