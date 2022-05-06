@@ -1,6 +1,8 @@
 import torch
 from transformers.models.bigscience176b import BigScience176BLMHeadModel
-from transformers import AutoTokenizer, AutoConfig
+from transformers import AutoTokenizer, AutoConfig, logging
+
+logging.set_verbosity_debug()
 
 # , logging
 
