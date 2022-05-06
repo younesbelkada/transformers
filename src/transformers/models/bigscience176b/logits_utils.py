@@ -11,7 +11,7 @@ def create_dir(directory):
             raise
 
 def save_logits(logit_name, logits, layer_number, layer_type):
-    logits_path = os.path.join(ROOT_PATH, "logits_tr", "layer_{}_{}".format(layer_number, layer_type))
+    logits_path = os.path.join(ROOT_PATH, "logits_tr_gen", "layer_{}_{}".format(layer_number, layer_type))
     create_dir(logits_path)
     file_name = logit_name + ".p"
     file_path = os.path.join(logits_path, file_name)

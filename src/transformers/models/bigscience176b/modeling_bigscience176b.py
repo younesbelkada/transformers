@@ -435,7 +435,7 @@ class BigScience176BBlock(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [b, s, h]
-        # save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
+        save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
         # Layer norm at the beginning of the transformer layer.
         layernorm_output = self.input_layernorm(hidden_states)
 
@@ -499,7 +499,7 @@ class BigScience176BBlock(nn.Module):
         else:
             outputs = (output,) + outputs[1:]
 
-        # save_logits('output', output, self.layer_number, "transformers")
+        save_logits('output', output, self.layer_number, "transformers")
         return outputs  # hidden_states, present, attentions
 
 
@@ -887,11 +887,11 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
-        # save_logits('hidden_states', hidden_states, "after_block", "transformers")
+        save_logits('hidden_states', hidden_states, "after_block", "transformers")
         hidden_states = self.ln_f(hidden_states)
 
         hidden_states = hidden_states.view(output_shape)
-        # save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
+        save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
 
         # Add last hidden state
         if output_hidden_states:
@@ -1035,6 +1035,7 @@ class BigScience176BLMHeadModel(BigScience176BPreTrainedModel):
             hidden_states = hidden_states.to(self.lm_head.weight.device)
 
         lm_logits = self.lm_head(hidden_states)
+        save_logits('final_logit', lm_logits, "after_final_emb", "transformers")
 
         loss = None
         if labels is not None:
