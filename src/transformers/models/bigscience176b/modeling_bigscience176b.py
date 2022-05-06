@@ -24,7 +24,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch import Tensor, nn
 from torch.nn import CrossEntropyLoss
-from transformers.models.bigscience176b.logits_utils import save_logits
+# from transformers.models.bigscience176b.logits_utils import # save_logits
 
 from ...file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, CausalLMOutputWithCrossAttentions
@@ -429,7 +429,7 @@ class BigScience176BBlock(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [b, s, h]
-        save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
+        # save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
         # Layer norm at the beginning of the transformer layer.
         # hidden_states = self.identity(hidden_states) # hack
         layernorm_output = self.input_layernorm(hidden_states)
@@ -473,14 +473,6 @@ class BigScience176BBlock(nn.Module):
         #     layernorm_input = bias_dropout_add_func(
         #         attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
         #     )
-        # print(residual.device)
-        # print(attention_output.device)
-        # print(attention_bias.expand_as(residual).device)
-        # # residual = self.self_attention.identity(residual)
-        # residual = residual.to(attention_output.device)
-        # print(residual.device)
-        # print(attention_output.device)
-        # print(attention_bias.expand_as(residual).device)
         layernorm_input = bias_dropout_add_func(
             attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
         )
@@ -508,7 +500,7 @@ class BigScience176BBlock(nn.Module):
         else:
             outputs = (output,) + outputs[1:]
 
-        save_logits('output', output, self.layer_number, "transformers")
+        # save_logits('output', output, self.layer_number, "transformers")
         return outputs  # hidden_states, present, attentions
 
 
@@ -896,11 +888,11 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
-        save_logits('hidden_states', hidden_states, "after_block", "transformers")
+        # save_logits('hidden_states', hidden_states, "after_block", "transformers")
         hidden_states = self.ln_f(hidden_states)
 
         hidden_states = hidden_states.view(output_shape)
-        save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
+        # save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
 
         # Add last hidden state
         if output_hidden_states:
@@ -1044,7 +1036,7 @@ class BigScience176BLMHeadModel(BigScience176BPreTrainedModel):
             hidden_states = hidden_states.to(self.lm_head.weight.device)
 
         lm_logits = self.lm_head(hidden_states)
-        save_logits('final_logit', lm_logits, "after_final_emb", "transformers")
+        # save_logits('final_logit', lm_logits, "after_final_emb", "transformers")
 
         loss = None
         if labels is not None:
