@@ -38,13 +38,13 @@ from .mpu_utils import split_tensor_along_last_dim
 
 from .scaled_softmax import ScaledSoftmax
 
-# try:
-#     import apex
-#     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
-#     print("successfully imported apex!")
-# except:
-#     from torch.nn import LayerNorm
-#     print("Could not import apex - trying with torch.nn.LayerNorm instead")
+try:
+    import apex
+    from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
+    print("successfully imported apex!")
+except:
+    from torch.nn import LayerNorm
+    print("Could not import apex - trying with torch.nn.LayerNorm instead")
 
 logger = logging.get_logger(__name__)
 
@@ -951,6 +951,8 @@ class BigScience176BLMHeadModel(BigScience176BPreTrainedModel):
         self.lm_head = self.lm_head.to("cpu")
         self.model_parallel = False
         torch.cuda.empty_cache()
+    
+
 
     def get_output_embeddings(self):
         return self.lm_head
