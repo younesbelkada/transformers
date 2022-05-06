@@ -19,7 +19,7 @@ model.tie_weights()
 # If using a different model, adjust `T5Block` to the proper class (for instance `"GPTJBlock"`)
 # device_map = infer_auto_device_map(model, no_split_module_classes=["BigScience176BBlock"])
 # device_map = infer_auto_device_map(model, no_split_module_classes=["BigScience176BBlock", "BigScience176BMLP", "BigScience176BAttention"])
-device_map = infer_auto_device_map(model)
+device_map = infer_auto_device_map(model, no_split_module_classes=["BigScience176BBlock", "BigScience176BAttention"])
 print(device_map)
 # Load the sharded checkpoint inside the model. This will load each part of the model on the device specified by `device_map`
 load_sharded_checkpoint_in_model(model, model_name, device_map=device_map)
