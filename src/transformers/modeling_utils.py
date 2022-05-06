@@ -77,6 +77,48 @@ _init_weights = True
 
 
 @contextmanager
+def init_empty_weights(include_buffers: bool = False):
+    """
+    A context manager under which models are initialized with all parameters on the meta device, therefore creating an
+    empty model. Useful when just initializing the model would blow the available RAM.
+    Args:
+        include_buffers (`bool`, *optional*, defaults to `False`):
+            Whether or not to also put all bufeers on the meta device while initializing.
+    Example:
+    ```pyton
+    import torch.nn as nn
+    from accelerate import init_empty_weights
+    # Initialize a model with 100 billions parameters in no time and without using any RAM.
+    with init_empty_weights():
+        tst = nn.Sequential(*[nn.Linear(10000, 10000) for _ in range(1000)])
+    ```
+    """
+    old_register_parameter = nn.Module.register_parameter
+    if include_buffers:
+        old_register_buffer = nn.Module.register_buffer
+
+    def register_empty_parameter(module, name, param):
+        old_register_parameter(module, name, param)
+        if param is not None:
+            module._parameters[name] = nn.Parameter(module._parameters[name].to(torch.device("meta")))
+
+    def register_empty_buffer(module, name, buffer):
+        old_register_buffer(module, name, buffer)
+        if buffer is not None:
+            module._buffers[name] = module._buffers[name].to(torch.device("meta"))
+
+    try:
+        nn.Module.register_parameter = register_empty_parameter
+        if include_buffers:
+            nn.Module.register_buffer = register_empty_buffer
+        yield
+    finally:
+        nn.Module.register_parameter = old_register_parameter
+        if include_buffers:
+            nn.Module.register_buffer = old_register_buffer
+
+
+@contextmanager
 def no_init_weights(_enable=True):
     """
     Context manager to globally disable weight initialization to speed up loading large models.
@@ -1951,7 +1993,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     model = cls(config, *model_args, **model_kwargs)
         else:
             with no_init_weights(_enable=_fast_init):
-                model = cls(config, *model_args, **model_kwargs)
+                with init_empty_weights():
+                    model = cls(config, *model_args, **model_kwargs)
                 print("Third-bis")
 
         if from_tf:
