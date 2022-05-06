@@ -446,9 +446,9 @@ class BigScience176BBlock(nn.Module):
 
         # Layer norm post the self attention.
         if self.apply_residual_connection_post_layernorm:
-            residual = layernorm_output.to(attn_outputs.device)
+            residual = layernorm_output.to(attention_output.device)
         else:
-            residual = hidden_states.to(attn_outputs.device)
+            residual = hidden_states.to(attention_output.device)
 
         # bias_dropout_add_func method simplifed for inference only (we remove the dropout)
         # residual = hidden_states

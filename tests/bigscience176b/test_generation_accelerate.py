@@ -1,3 +1,4 @@
+import torch
 from accelerate import init_empty_weights, dispatch_model, infer_auto_device_map, load_sharded_checkpoint_in_model
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, AutoModel
 from transformers import AutoTokenizer, AutoConfig
@@ -28,5 +29,6 @@ model = dispatch_model(model, device_map)
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 inputs = tokenizer("Task: copy but say the opposite. PSG won its match against Barca.", return_tensors="pt")
 inputs = inputs.to(0)
-output = model.generate(inputs["input_ids"])
+with torch.no_grad():
+    output = model.generate(inputs["input_ids"])
 tokenizer.decode(output[0].tolist())
