@@ -141,9 +141,12 @@ class BigScience176BAttention(nn.Module):
         
         self.mask_func = attention_mask_func
 
-        self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype, bias=True)
+        # self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype, bias=True)
+        self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, bias=not config.skip_bias_add_qkv)
         # TODO : Try a custom class
-        self.dense = nn.Linear(self.hidden_size, self.hidden_size, dtype=dtype)
+        # self.dense = nn.Linear(self.hidden_size, self.hidden_size, dtype=dtype)
+        self.dense = nn.Linear(self.hidden_size, self.hidden_size)
+
         self.skip_bias_add = config.skip_bias_add
         self.skip_bias_add_qkv = config.skip_bias_add_qkv
         self.attention_dropout = torch.nn.Dropout(config.attention_dropout)
@@ -161,12 +164,12 @@ class BigScience176BAttention(nn.Module):
         # hidden_states: [sq, b, h]
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
-        bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
+        # bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
 
-        output_bias = self.query_key_value.bias if self.skip_bias_add_qkv else None
+        # output_bias = self.query_key_value.bias if self.skip_bias_add_qkv else None
 
-        mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
-        
+        # mixed_x_layer, _ = F.linear(hidden_states, self.query_key_value.weight, bias), output_bias
+        mixed_x_layer = self.query_key_value(hidden_states)
 
 
         # [sq, b, (np * 3 * hn)] --> [sq, b, np, 3 * hn]
@@ -300,7 +303,10 @@ class BigScience176BAttention(nn.Module):
                     self.dense.weight[:, int(i * slices) : int((i + 1) * slices)],
                 )
         else:
-            output_tensor = F.linear(context_layer, self.dense.weight)
+            # output_tensor = F.linear(context_layer, self.dense.weight)
+            intermediate_output = self.dense(hidden_states)
+            output_bias = self.dense.bias if self.skip_bias_add else None
+            return intermediate_output, output_bias
 
         if not self.skip_bias_add:
             output_tensor = output_tensor + self.dense.bias if self.dense.bias is not None else output_tensor
@@ -324,17 +330,21 @@ class BigScience176BMLP(nn.Module):
         dtype = getattr(torch, config.dtype)
         self.skip_bias_add = config.skip_bias_add
         self.pretraining_tp = config.pretraining_tp
-        self.dense_h_to_4h = nn.Linear(hidden_size, 4 * hidden_size, dtype=dtype)
+        # self.dense_h_to_4h = nn.Linear(hidden_size, 4 * hidden_size, dtype=dtype)
+        self.dense_h_to_4h = nn.Linear(hidden_size, 4 * hidden_size, dtype=dtype, bias=not self.skip_bias_add)
         # self.activation_func = F.gelu
         self.activation_func = bias_gelu_impl
-        self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
+        # self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
+        self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype, bias=not self.skip_bias_add)
 
     def forward(self, hidden_states):
         input_ = hidden_states
 
-        hidden_states = self.activation_func(
-            F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
-        )
+        # hidden_states = self.activation_func(
+        #     F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
+        # )
+
+        hidden_states = self.activation_func(self.dense_h_to_4h(hidden_states))
 
         # hidden_states = F.gelu(
         #     F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
@@ -349,7 +359,10 @@ class BigScience176BMLP(nn.Module):
                     self.dense_4h_to_h.weight[:, int(i * slices) : int((i + 1) * slices)],
                 )
         else:
-            intermediate_output = F.linear(hidden_states, self.dense_4h_to_h.weight)
+            # intermediate_output = F.linear(hidden_states, self.dense_4h_to_h.weight)
+            intermediate_output = self.dense_4h_to_h(hidden_states)
+            output_bias = self.dense_4h_to_h.bias if self.skip_bias_add else None
+            return intermediate_output, output_bias
 
         if not self.skip_bias_add:
             output = (
