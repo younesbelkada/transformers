@@ -31,7 +31,7 @@ model = dispatch_model(model, device_map)
 
 # The rest should feel familiar:
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-inputslogits = tokenizer.encode("Hello, my name is Ingrid.", return_tensors="pt")
+inputslogits = tokenizer.encode("Hello, my name is Ingrid.", return_tensors="pt").to(0)
 with torch.no_grad():
     logits = model(inputslogits["input_ids"])
 print(logits)
