@@ -24,6 +24,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint
 from torch import Tensor, nn
 from torch.nn import CrossEntropyLoss
+from torch.nn import LayerNorm
 # from transformers.models.bigscience176b.logits_utils import # save_logits
 
 from ...file_utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward
@@ -37,13 +38,13 @@ from .mpu_utils import split_tensor_along_last_dim
 
 from .scaled_softmax import ScaledSoftmax
 
-try:
-    import apex
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
-    print("successfully imported apex!")
-except:
-    from torch.nn import LayerNorm
-    print("Could not import apex - trying with torch.nn.LayerNorm instead")
+# try:
+#     import apex
+#     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
+#     print("successfully imported apex!")
+# except:
+#     from torch.nn import LayerNorm
+#     print("Could not import apex - trying with torch.nn.LayerNorm instead")
 
 logger = logging.get_logger(__name__)
 

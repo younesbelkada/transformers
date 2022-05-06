@@ -31,6 +31,11 @@ model = dispatch_model(model, device_map)
 
 # The rest should feel familiar:
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+inputslogits = tokenizer.encode("Hello, my name is Ingrid.", return_tensors="pt")
+with torch.no_grad():
+    logits = model(inputslogits[inputslogits]).logits
+print(logits)
+
 inputs = tokenizer("Task: copy but say the opposite. PSG won its match against Barca.", return_tensors="pt")
 inputs = inputs.to(0)
 with torch.no_grad():
