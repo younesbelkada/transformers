@@ -467,6 +467,9 @@ class BigScience176BBlock(nn.Module):
         #     layernorm_input = bias_dropout_add_func(
         #         attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
         #     )
+        print(residual.device)
+        print(attention_output.device)
+        print(attention_bias.expand_as(residual).device)
         layernorm_input = bias_dropout_add_func(
             attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
         )
