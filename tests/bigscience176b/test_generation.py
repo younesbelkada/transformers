@@ -4,7 +4,7 @@ from transformers import AutoTokenizer, AutoConfig
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
 config = AutoConfig.from_pretrained(model_name)
 
-model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False, low_cpu_mem=True)
+model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False, low_cpu_mem_usage=True)
 tokenizer = AutoTokenizer.from_pretrained("bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles")
 
 input_ids = tokenizer.encode('I enjoy walking with my cute dog', return_tensors='tf')
