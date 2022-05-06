@@ -1655,6 +1655,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         Currently, it can't handle deepspeed ZeRO stage 3 and ignores loading errors
 
         """
+        print("first")
         config = kwargs.pop("config", None)
         state_dict = kwargs.pop("state_dict", None)
         cache_dir = kwargs.pop("cache_dir", None)
@@ -1898,6 +1899,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 mirror=mirror,
             )
 
+        print("Second")
         # load pt weights early so that we know which dtype to init the model under
         if from_pt:
             if not is_sharded and state_dict is None:
@@ -1936,6 +1938,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         config.name_or_path = pretrained_model_name_or_path
 
+        print("Third")
         # Instantiate model.
         if is_deepspeed_zero3_enabled():
             import deepspeed
@@ -1949,6 +1952,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         else:
             with no_init_weights(_enable=_fast_init):
                 model = cls(config, *model_args, **model_kwargs)
+                print("Third-bis")
 
         if from_tf:
             if resolved_archive_file.endswith(".index"):
@@ -1983,6 +1987,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             if dtype_orig is not None:
                 torch.set_default_dtype(dtype_orig)
 
+            print("Forth")
             model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
                 model,
                 state_dict,
@@ -1995,6 +2000,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 low_cpu_mem_usage=low_cpu_mem_usage,
             )
 
+        print("Fifth")
         # make sure token embedding weights are still tied if needed
         model.tie_weights()
 
@@ -2146,6 +2152,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             error_msgs = []
             mismatched_keys = []
             for shard_file in resolved_archive_file:
+                print(f"load shared file {shard_file}")
                 state_dict = load_state_dict(shard_file)
 
                 if low_cpu_mem_usage:
@@ -2172,6 +2179,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 # force memory release
                 del state_dict
                 gc.collect()
+
+            print(f"loaded all shared files")
 
         if len(error_msgs) > 0:
             error_msg = "\n\t".join(error_msgs)
