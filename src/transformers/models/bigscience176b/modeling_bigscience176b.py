@@ -344,7 +344,7 @@ class BigScience176BMLP(nn.Module):
         #     F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
         # )
 
-        hidden_states = self.activation_func(self.dense_h_to_4h(hidden_states))
+        hidden_states = self.activation_func(self.dense_h_to_4h(hidden_states), self.dense_h_to_4h.bias)
 
         # hidden_states = F.gelu(
         #     F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
