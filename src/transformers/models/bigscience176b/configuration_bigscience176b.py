@@ -135,7 +135,8 @@ class BigScience176BConfig(PretrainedConfig):
         attention_softmax_in_fp32=True,
         pretraining_tp=4,  # TODO
         pretraining_pp=12,  # TODO
-        dtype="float16",
+        tie_word_embeddings=True,
+        dtype="bfloat16",
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -157,6 +158,7 @@ class BigScience176BConfig(PretrainedConfig):
         self.skip_bias_add_qkv = skip_bias_add_qkv
         self.attention_dropout = attention_dropout
         self.attention_softmax_in_fp32 = attention_softmax_in_fp32
+        self.tie_word_embeddings = tie_word_embeddings
 
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id

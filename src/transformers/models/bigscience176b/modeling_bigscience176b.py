@@ -84,13 +84,13 @@ def get_bias_dropout_add(training):
     return _bias_dropout_add
 
 
-# @torch.jit.script
+@torch.jit.script
 def bias_dropout_add_fused_train(x, bias, residual, prob):
     # type: (Tensor, Tensor, Tensor, float) -> Tensor
     return bias_dropout_add(x, bias, residual, prob, True)
 
 
-# @torch.jit.script
+@torch.jit.script
 def bias_dropout_add_fused_inference(x, bias, residual, prob):
     # type: (Tensor, Tensor, Tensor, float) -> Tensor
     return bias_dropout_add(x, bias, residual, prob, False)
