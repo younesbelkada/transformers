@@ -338,7 +338,7 @@ class BigScience176BMLP(nn.Module):
         self.activation_func = bias_gelu_impl
         # self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
         self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
-        self.dense_h_to_4h_bias = self.dense_h_to_4h.bias
+        self.dense_4h_to_h_bias = self.dense_4h_to_h.bias
         self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype, bias=not self.skip_bias_add)
 
     def forward(self, hidden_states):
@@ -365,7 +365,7 @@ class BigScience176BMLP(nn.Module):
         else:
             # intermediate_output = F.linear(hidden_states, self.dense_4h_to_h.weight)
             intermediate_output = self.dense_4h_to_h(hidden_states)
-            output_bias = self.dense_h_to_4h_bias if self.skip_bias_add else None
+            output_bias = self.dense_4h_to_h_bias if self.skip_bias_add else None
             return intermediate_output, output_bias
 
         if not self.skip_bias_add:
