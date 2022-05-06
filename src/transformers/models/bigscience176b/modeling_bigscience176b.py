@@ -332,6 +332,7 @@ class BigScience176BMLP(nn.Module):
         self.pretraining_tp = config.pretraining_tp
         # self.dense_h_to_4h = nn.Linear(hidden_size, 4 * hidden_size, dtype=dtype)
         self.dense_h_to_4h = nn.Linear(hidden_size, 4 * hidden_size, dtype=dtype, bias=not self.skip_bias_add)
+        self.dense_h_to_4h_bias = self.dense_h_to_4h.bias
         # self.activation_func = F.gelu
         self.activation_func = bias_gelu_impl
         # self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
@@ -344,7 +345,7 @@ class BigScience176BMLP(nn.Module):
         #     F.linear(hidden_states, self.dense_h_to_4h.weight), self.dense_h_to_4h.bias
         # )
 
-        hidden_states = self.activation_func(self.dense_h_to_4h(hidden_states), self.dense_h_to_4h.bias)
+        hidden_states = self.activation_func(self.dense_h_to_4h(hidden_states), self.dense_h_to_4h_bias)
 
         # hidden_states = F.gelu(
         #     F.linear(hidden_states, self.dense_h_to_4h.weight) + self.dense_h_to_4h.bias
