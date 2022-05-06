@@ -147,7 +147,7 @@ class BigScience176BAttention(nn.Module):
         self.skip_bias_add = config.skip_bias_add
         self.skip_bias_add_qkv = config.skip_bias_add_qkv
         self.attention_dropout = torch.nn.Dropout(config.attention_dropout)
-        self.indentity = nn.Identity()
+        self.identity = nn.Identity()
 
 
     def forward(
@@ -330,7 +330,7 @@ class BigScience176BMLP(nn.Module):
         # self.activation_func = F.gelu
         self.activation_func = bias_gelu_impl
         self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size, dtype=dtype)
-        self.indentity = nn.Identity()
+        self.identity = nn.Identity()
 
     def forward(self, hidden_states):
         input_ = hidden_states
