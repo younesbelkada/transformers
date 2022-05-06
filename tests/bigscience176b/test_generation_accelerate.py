@@ -1,5 +1,5 @@
 from accelerate import init_empty_weights, dispatch_model, infer_auto_device_map, load_sharded_checkpoint_in_model
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, BigScience176BModel
 from transformers import AutoTokenizer, AutoConfig
 
 # model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
@@ -8,7 +8,7 @@ config = AutoConfig.from_pretrained(model_name)
 
 # model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False, low_cpu_mem_usage=True)
 with init_empty_weights():
-    model = AutoModelForCausalLM.from_config(config)
+    model = BigScience176BModel.from_config(config)
 
 print("successfully loaded model")
 
