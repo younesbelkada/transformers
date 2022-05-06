@@ -160,7 +160,7 @@ def convert_bigscience176b_checkpoint_to_pytorch(
                 if any(key.endswith(end) for end in WEIGHTS_TO_AVERAGE_ENDSWITH):
                     tensors[key] = tensors[key] / config.pretraining_tp
                 final_tensors['transformer.'+key] = tensors[key]
-            torch.save(tensors, os.path.join(pytorch_dump_folder_path, "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))))
+            torch.save(final_tensors, os.path.join(pytorch_dump_folder_path, "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))))
             for key in final_tensors.keys():
                 if key not in index_dict["weight_map"]:
                     index_dict["weight_map"][key] =  "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))
