@@ -25,7 +25,7 @@ load_sharded_checkpoint_in_model(model, model_name, device_map=device_map)
 model = dispatch_model(model, device_map)
 
 # The rest should feel familiar:
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 inputs = tokenizer("Task: copy but say the opposite. PSG won its match against Barca.", return_tensors="pt")
 inputs = inputs.to(0)
 output = model.generate(inputs["input_ids"])
