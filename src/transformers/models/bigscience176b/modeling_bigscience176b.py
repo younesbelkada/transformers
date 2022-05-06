@@ -306,7 +306,9 @@ class BigScience176BAttention(nn.Module):
             # output_tensor = F.linear(context_layer, self.dense.weight)
             intermediate_output = self.dense(hidden_states)
             output_bias = self.dense.bias if self.skip_bias_add else None
-            return intermediate_output, output_bias
+            outputs = (intermediate_output, present)
+            
+            return outputs, output_bias
 
         if not self.skip_bias_add:
             output_tensor = output_tensor + self.dense.bias if self.dense.bias is not None else output_tensor
