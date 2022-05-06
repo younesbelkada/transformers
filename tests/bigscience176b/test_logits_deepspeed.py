@@ -13,7 +13,8 @@ world_size = int(os.getenv("WORLD_SIZE", "1"))
 torch.cuda.set_device(local_rank)
 deepspeed.init_distributed()
 
-model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
+# model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
+model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-31000-transformers-sharded"
 
 config = AutoConfig.from_pretrained(model_name)
 model_hidden_size = config.hidden_size
