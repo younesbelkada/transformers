@@ -446,9 +446,9 @@ class BigScience176BBlock(nn.Module):
 
         # Layer norm post the self attention.
         if self.apply_residual_connection_post_layernorm:
-            residual = layernorm_output
+            residual = layernorm_output.to(attn_outputs.device)
         else:
-            residual = hidden_states
+            residual = hidden_states.to(attn_outputs.device)
 
         # bias_dropout_add_func method simplifed for inference only (we remove the dropout)
         # residual = hidden_states
@@ -463,10 +463,13 @@ class BigScience176BBlock(nn.Module):
             bias_dropout_add_func = get_bias_dropout_add(self.training)
 
         # re-enable torch grad to enable fused optimization.
-        with torch.enable_grad():
-            layernorm_input = bias_dropout_add_func(
-                attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
-            )
+        # with torch.enable_grad():
+        #     layernorm_input = bias_dropout_add_func(
+        #         attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
+        #     )
+        layernorm_input = bias_dropout_add_func(
+            attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
+        )
 
         layernorm_output = self.post_attention_layernorm(layernorm_input)
 
