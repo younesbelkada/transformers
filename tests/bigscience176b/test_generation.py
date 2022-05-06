@@ -2,7 +2,7 @@ from transformers.models.bigscience176b import BigScience176BLMHeadModel
 from transformers import AutoTokenizer, AutoConfig
 
 # model_name = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-sharded"
-model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-31000-transformers-sharded"
+model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transformers-sharded"
 
 config = AutoConfig.from_pretrained(model_name)
 
