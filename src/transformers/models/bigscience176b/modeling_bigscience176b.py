@@ -477,6 +477,9 @@ class BigScience176BBlock(nn.Module):
         print(attention_output.device)
         print(attention_bias.expand_as(residual).device)
         residual = self.self_attention.identity(residual)
+        print(residual.device)
+        print(attention_output.device)
+        print(attention_bias.expand_as(residual).device)
         layernorm_input = bias_dropout_add_func(
             attention_output, attention_bias.expand_as(residual), residual, self.hidden_dropout
         )
