@@ -8,6 +8,8 @@ config = AutoConfig.from_pretrained(model_name)
 
 model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False, low_cpu_mem_usage=True)
 
+print("successfully loaded model")
+
 device_map = {
     0:[0, 1, 2, 3, 4, 5, 6, 7, 8],
     1:[9, 10, 11, 12, 13, 14, 15, 16, 17],
@@ -20,6 +22,8 @@ device_map = {
 }
 model.parallelize(device_map)
 model.eval()
+
+print("successfully parallelized model")
 
 tokenizer = AutoTokenizer.from_pretrained("bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles")
 
