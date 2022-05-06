@@ -446,9 +446,9 @@ class BigScience176BBlock(nn.Module):
 
         # Layer norm post the self attention.
         if self.apply_residual_connection_post_layernorm:
-            residual = layernorm_output.to(attention_output.device)
+            residual = layernorm_output
         else:
-            residual = hidden_states.to(attention_output.device)
+            residual = hidden_states
 
         # bias_dropout_add_func method simplifed for inference only (we remove the dropout)
         # residual = hidden_states
@@ -483,8 +483,11 @@ class BigScience176BBlock(nn.Module):
             residual = layernorm_input
 
         # output = mlp_output + residual
-        with torch.enable_grad():
-            output = bias_dropout_add_func(mlp_output, mlp_bias.expand_as(residual), residual, self.hidden_dropout)
+        # with torch.enable_grad():
+        #     output = bias_dropout_add_func(mlp_output, mlp_bias.expand_as(residual), residual, self.hidden_dropout)
+        
+        output = bias_dropout_add_func(mlp_output, mlp_bias.expand_as(residual), residual, self.hidden_dropout)
+
 
         if use_cache:
             outputs = (output,) + outputs
