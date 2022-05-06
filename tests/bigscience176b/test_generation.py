@@ -7,7 +7,7 @@ config = AutoConfig.from_pretrained(model_name)
 model = BigScience176BLMHeadModel.from_pretrained(model_name, use_cache=False, low_cpu_mem_usage=True)
 tokenizer = AutoTokenizer.from_pretrained("bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles")
 
-input_ids = tokenizer.encode('I enjoy walking with my cute dog', return_tensors='tf')
+input_ids = tokenizer.encode('I enjoy walking with my cute dog', return_tensors='pt')
 
 # generate text until the output length (which includes the context length) reaches 50
 greedy_output = model.generate(input_ids, max_length=50)
