@@ -15,7 +15,7 @@ tokenizer = AutoTokenizer.from_pretrained("bigscience-catalogue-data-dev/byte-le
 input_ids = tokenizer.encode('I enjoy walking with my cute dog', return_tensors='pt')
 
 # generate text until the output length (which includes the context length) reaches 50
-greedy_output = model.generate(input_ids, max_length=50)
+greedy_output = model.generate(input_ids.to('cuda:0'), max_length=50)
 
 print("Output:\n" + 100 * '-')
 print(tokenizer.decode(greedy_output[0], skip_special_tokens=True))
