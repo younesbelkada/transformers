@@ -139,7 +139,7 @@ class BigScience176BConfig(PretrainedConfig):
         dtype="bfloat16",
         **kwargs,
     ):
-        self.vocab_size = vocab_size
+        self.vocab_size = vocab_size # vocab size
         self.seq_length = seq_length
         self.hidden_size = hidden_size
         self.n_layer = n_layer
