@@ -96,7 +96,7 @@ def convert_file_size_to_int(size):
     if size.upper().endswith("KB"):
         return int(size[:-2]) * (2**10)
 
-def dtype_size(dtype):
+def get_dtype_size(dtype):
     if dtype == torch.bool:
         return 1 / 8
     bit_search = re.search("[^\d](\d+)$", str(dtype))
@@ -120,12 +120,15 @@ def convert_bigscience176b_checkpoint_to_pytorch(
         file_names = list(sorted(filter(lambda s: s.startswith("layer") and "model_00" in s, file_names)))
 
         index_dict = {"weight_map":{}, "metadata":{}}
+        total_size = 0
+        dtype_size = get_dtype_size(config.dtype)
         # step_layers = len(file_names) // n_shards
         missing_keys = None
 
         config = BigScience176BConfig()
 
         for j, file in enumerate(file_names):
+            print("Processing file: {}".format(file))
             tensors = None
             # final_tensors = {}
 
@@ -162,11 +165,18 @@ def convert_bigscience176b_checkpoint_to_pytorch(
                 # final_tensors['transformer.'+key] = tensors[key]
             # torch.save(final_tensors, os.path.join(pytorch_dump_folder_path, "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))))
             torch.save(tensors, os.path.join(pytorch_dump_folder_path, "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))))
+            
+            tensor_size = 1
+            for ele in tensors.size():
+                tensor_size *= ele
+            total_size += dtype_size * tensor_size
+            
             for key in tensors.keys():
                 if key not in index_dict["weight_map"]:
                     index_dict["weight_map"][key] =  "pytorch_model_{}-of-{}.bin".format(str(j+1).zfill(5), str(len(file_names)).zfill(5))
         config = BigScience176BConfig()
         pytorch_config_dump_path = pytorch_dump_folder_path + "/" + CONFIG_NAME
+        index_dict['metadata']['total_size'] = total_size
         with open(pytorch_config_dump_path, "w", encoding="utf-8") as f:
             f.write(config.to_json_string())
         with open(os.path.join(pytorch_dump_folder_path, WEIGHTS_NAME+'.index.json'), "w", encoding="utf-8") as f:
