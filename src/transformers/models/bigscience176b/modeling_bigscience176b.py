@@ -33,7 +33,7 @@ from .configuration_bigscience176b import BigScience176BConfig
 from .fused_bias_gelu import bias_gelu_impl
 from .mpu_utils import split_tensor_along_last_dim
 from .scaled_softmax import ScaledSoftmax  # to define it locally?
-from .logits_utils import # save_logits
+from .logits_utils import save_logits
 
 
 try:
@@ -160,7 +160,7 @@ class BigScience176BAttention(nn.Module):
     ):
         # hidden_states: [sq, b, h]
 
-        # save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
+        save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
         bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
@@ -305,7 +305,7 @@ class BigScience176BAttention(nn.Module):
             output_bias = self.dense.bias
         output = output_tensor
 
-        # save_logits('output', output, self.layer_number, "transformers")
+        save_logits('output', output, self.layer_number, "transformers")
         # output = self.dense(context_layer)
 
         outputs = (output, present)
@@ -869,9 +869,9 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
-        # save_logits('hidden_states', hidden_states, "after_block", "transformers")
+        save_logits('hidden_states', hidden_states, "after_block", "transformers")
         hidden_states = self.ln_f(hidden_states)
-        # save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
+        save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
 
         hidden_states = hidden_states.view(output_shape)
         # Add last hidden state
@@ -1016,7 +1016,7 @@ class BigScience176BLMHeadModel(BigScience176BPreTrainedModel):
             hidden_states = hidden_states.to(self.lm_head.weight.device)
 
         lm_logits = self.lm_head(hidden_states)
-        # save_logits('final_logit', lm_logits, "after_final_emb", "transformers")
+        save_logits('final_logit', lm_logits, "after_final_emb", "transformers")
 
         loss = None
         if labels is not None:
