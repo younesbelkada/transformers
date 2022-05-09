@@ -125,6 +125,7 @@ class BigScience176BAttention(nn.Module):
             )
 
         # Layer-wise attention scaling
+        self.real_layer_number = layer_number
         self.layer_number = max(1, layer_number)
         coeff = self.layer_number
         self.norm_factor = math.sqrt(self.head_dim) * coeff
@@ -160,7 +161,7 @@ class BigScience176BAttention(nn.Module):
     ):
         # hidden_states: [sq, b, h]
 
-        save_logits('hidden_states', hidden_states, self.layer_number, "transformers")
+        save_logits('hidden_states', hidden_states, self.real_layer_number, "transformers")
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
         bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
@@ -305,7 +306,7 @@ class BigScience176BAttention(nn.Module):
             output_bias = self.dense.bias
         output = output_tensor
 
-        save_logits('output', output, self.layer_number, "transformers")
+        save_logits('output', output, self.real_layer_number, "transformers")
         # output = self.dense(context_layer)
 
         outputs = (output, present)
