@@ -61,7 +61,9 @@ BIGSCIENCE176B_PRETRAINED_MODEL_ARCHIVE_LIST = [
 # Utility functions below:
 
 def attention_mask_func(attention_scores, attention_mask, causal_mask):
-    padded_causal_mask = (attention_mask + ~causal_mask).bool()
+    query_length, key_length = attention_scores.size(2), attention_scores.size(3)
+    padded_causal_mask = (attention_mask[:, None, :, None] + ~causal_mask[:, :, key_length - query_length : key_length, : key_length]).bool()
+    
     # Make use of floats
     if padded_causal_mask.dtype == torch.bool:
         return attention_scores.masked_fill_(padded_causal_mask, -10000.0)
