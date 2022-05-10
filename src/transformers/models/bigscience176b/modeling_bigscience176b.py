@@ -68,8 +68,6 @@ def attention_mask_func(attention_scores, attention_mask, causal_mask):
     
     query_length, key_length, n_heads = attention_scores.size(2), attention_scores.size(3), attention_scores.size(1)
     padded_causal_mask = (attention_mask_bool[:, None, key_length - query_length : key_length, None] + ~causal_mask[:, :, key_length - query_length : key_length, : key_length]).bool()
-    # print("scores:", attention_scores)
-    print("mask:", padded_causal_mask)
     # Make use of floats
     if padded_causal_mask.dtype == torch.bool:
         return attention_scores.masked_fill_(padded_causal_mask.expand(-1, n_heads, -1, -1), -10000.0)
@@ -667,7 +665,7 @@ DEPARALLELIZE_DOCSTRING = r"""
     BIGSCIENCE176B_START_DOCSTRING,
 )
 class BigScience176BModel(BigScience176BPreTrainedModel):
-    _keys_to_ignore_on_load_missing = ["attn.masked_bias"]
+    _keys_to_ignore_on_load_missing = ["self_attention.scale_mask_softmax.causal_mask"]
 
     def __init__(self, config):
         super().__init__(config)
