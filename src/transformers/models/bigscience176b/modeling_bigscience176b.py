@@ -110,7 +110,7 @@ class BigScience176BAttention(nn.Module):
         self.attention_softmax_in_fp32 = config.attention_softmax_in_fp32
         self.masked_softmax_fusion = config.masked_softmax_fusion
 
-        max_positions = config.seq_len
+        max_positions = config.seq_length
         self.register_buffer(
             "causal_mask",
             torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
