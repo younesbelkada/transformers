@@ -35,16 +35,17 @@ from .mpu_utils import split_tensor_along_last_dim
 from .scaled_softmax import ScaledSoftmax  # to define it locally?
 
 
-try:
-    from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
+# try:
+#     from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
 
-    print("successfully imported apex!")
-except ImportError:
-    from torch.nn import LayerNorm
+#     print("successfully imported apex!")
+# except ImportError:
+#     from torch.nn import LayerNorm
 
-    print(
-        "Could not import apex - trying with torch.nn.LayerNorm instead - may lead to very small numerical instabilities"
-    )
+#     print(
+#         "Could not import apex - trying with torch.nn.LayerNorm instead - may lead to very small numerical instabilities"
+#     )
+from torch.nn import LayerNorm
 
 logger = logging.get_logger(__name__)
 
