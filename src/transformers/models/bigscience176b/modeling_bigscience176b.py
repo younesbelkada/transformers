@@ -141,6 +141,7 @@ class BigScience176BAttention(nn.Module):
             attention_mask_func,
             self.attention_softmax_in_fp32,
             coeff,
+            config.seq_length,
         )
 
         self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype, bias=True)
