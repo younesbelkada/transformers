@@ -70,3 +70,5 @@ def main():
     with open(os.path.join(output_dir, "output_json.json"), "w") as f:
         json.dump(output_json, f)
 
+if __name__ == "__main__":
+    main()
