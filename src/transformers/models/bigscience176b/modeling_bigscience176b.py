@@ -665,7 +665,7 @@ DEPARALLELIZE_DOCSTRING = r"""
     BIGSCIENCE176B_START_DOCSTRING,
 )
 class BigScience176BModel(BigScience176BPreTrainedModel):
-    _keys_to_ignore_on_load_missing = ["self_attention.scale_mask_softmax.causal_mask"]
+    _keys_to_ignore_on_load_missing = ["h.self_attention.scale_mask_softmax.causal_mask"]
 
     def __init__(self, config):
         super().__init__(config)
