@@ -33,7 +33,6 @@ from .configuration_bigscience176b import BigScience176BConfig
 from .fused_bias_gelu import bias_gelu_impl
 from .mpu_utils import split_tensor_along_last_dim
 from .scaled_softmax import ScaledSoftmax  # to define it locally?
-# from .logits_utils import # save_logits
 
 
 try:
@@ -61,14 +60,16 @@ BIGSCIENCE176B_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 # Utility functions below:
 
-
 def attention_mask_func(attention_scores, attention_mask):
     # Make use of floats
-    values_to_attend = 1.0 - attention_mask
-    return (values_to_attend * attention_scores) - 10000.0 * attention_mask
-    # return attention_scores.masked_fill_(attention_mask, -10000.0)
+    if attention_mask.dtype == torch.bool:
+        return attention_scores.masked_fill_(attention_mask, -10000.0)
+    else:
+        values_to_attend = 1.0 - attention_mask
+        return (values_to_attend * attention_scores) - 10000.0 * attention_mask
 
-
+# def attention_mask_func(attention_scores, attention_mask):
+#     return attention_scores.masked_fill_(attention_mask, -10000.0)
 def bias_dropout_add(x, bias, residual, prob, training):
     # type: (Tensor, Tensor, Tensor, float, bool) -> Tensor
     out = torch.nn.functional.dropout(x + bias, p=prob, training=training)
@@ -125,7 +126,6 @@ class BigScience176BAttention(nn.Module):
             )
 
         # Layer-wise attention scaling
-        self.real_layer_number = layer_number
         self.layer_number = max(1, layer_number)
         coeff = self.layer_number
         self.norm_factor = math.sqrt(self.head_dim) * coeff
@@ -160,8 +160,6 @@ class BigScience176BAttention(nn.Module):
         output_attentions=False,
     ):
         # hidden_states: [sq, b, h]
-
-        # save_logits('hidden_states', hidden_states, self.real_layer_number, "transformers")
         alibi = alibi.repeat(1, hidden_states.shape[1], 1).to(hidden_states.device)  # repeat with batch size
 
         bias = self.query_key_value.bias if not self.skip_bias_add_qkv else None
@@ -200,7 +198,7 @@ class BigScience176BAttention(nn.Module):
         key_layer = key_layer.view(output_size[3], output_size[0] * output_size[1], -1)
 
         # alibi
-        matmul_result = alibi[: output_size[0] * output_size[1], :, : output_size[3]]
+        matmul_result = alibi[: output_size[0] * output_size[1], :, :output_size[3]]
 
         # Raw attention scores. [b * np, sq, sk]
         beta = 1.0 / self.layer_number
@@ -221,12 +219,12 @@ class BigScience176BAttention(nn.Module):
         # Update attention mask for inference. [b, np, sq, sk]
         # ==================================================
 
-        if use_cache:
+        if use_cache and attention_mask is not None:
             with torch.no_grad():
                 if layer_past is not None:
                     attention_mask = attention_mask[
-                        ..., attention_scores.size(3) - 1, : attention_scores.size(3)
-                    ].unsqueeze(2)
+                        ..., : attention_scores.size(3) - 1, : attention_scores.size(3)
+                    ]
                 else:
                     attention_mask = attention_mask[..., : attention_scores.size(3), : attention_scores.size(3)]
 
@@ -305,8 +303,6 @@ class BigScience176BAttention(nn.Module):
             output_tensor = output_tensor
             output_bias = self.dense.bias
         output = output_tensor
-
-        # save_logits('output', output, self.real_layer_number, "transformers")
         # output = self.dense(context_layer)
 
         outputs = (output, present)
@@ -367,6 +363,7 @@ class BigScience176BBlock(nn.Module):
 
         self.input_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon).to(dtype)
         self.alibi = self._build_alibi_tensor(config.seq_length, config.n_head, dtype=dtype)
+        # self.alibi = self._build_alibi_tensor(config.seq_length, config.n_head, dtype=dtype)
         self.self_attention = BigScience176BAttention(config, layer_number=layer_number)
         self.post_attention_layernorm = LayerNorm(hidden_size, eps=config.layer_norm_epsilon).to(dtype)
 
@@ -396,7 +393,7 @@ class BigScience176BBlock(nn.Module):
                     + get_slopes(2 * closest_power_of_2)[0::2][: n - closest_power_of_2]
                 )
 
-        slopes = torch.tensor(get_slopes(n_head))
+        slopes = torch.Tensor(get_slopes(n_head))
         alibi = slopes.unsqueeze(1).unsqueeze(1) * torch.arange(max_seq_len).unsqueeze(0).unsqueeze(0).expand(
             n_head, -1, -1
         )
@@ -870,9 +867,7 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
 
-        # save_logits('hidden_states', hidden_states, "after_block", "transformers")
         hidden_states = self.ln_f(hidden_states)
-        # save_logits('hidden_states', hidden_states, "after_block_ln", "transformers")
 
         hidden_states = hidden_states.view(output_shape)
         # Add last hidden state
@@ -1017,7 +1012,6 @@ class BigScience176BLMHeadModel(BigScience176BPreTrainedModel):
             hidden_states = hidden_states.to(self.lm_head.weight.device)
 
         lm_logits = self.lm_head(hidden_states)
-        # save_logits('final_logit', lm_logits, "after_final_emb", "transformers")
 
         loss = None
         if labels is not None:
