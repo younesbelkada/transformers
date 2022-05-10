@@ -56,7 +56,7 @@ class ScaledSoftmax(nn.Module):
 
         self.register_buffer(
             "causal_mask",
-            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
+            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.bool)).view(
                 1, 1, max_positions, max_positions
             ),
         )
