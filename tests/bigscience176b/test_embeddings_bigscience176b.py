@@ -44,6 +44,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         # pass
 
     @torch.no_grad()
+    @unittest.skip("demonstrating skipping")
     def test_embeddings(self):
         model = AutoModel.from_pretrained(self.path_bigscience_model)
         model.eval()
@@ -296,7 +297,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         # self.assertDictEqual(EMBEDDINGS_DS_AFTER_LN, output_dict_norm)
 
     @torch.no_grad()
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_hidden_states_transformers(self):
         # TODO ifelse device
         cuda_available = torch.cuda.is_available()
@@ -349,7 +350,7 @@ class BigScienceEmbeddingTest(unittest.TestCase):
         self.assertDictEqual(MIN_MAX_DICT, output_dict)
 
     @torch.no_grad()
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_logits(self):
         cuda_available = torch.cuda.is_available()
         device = torch.device("cuda:0" if cuda_available else "cpu")
@@ -387,6 +388,54 @@ class BigScienceEmbeddingTest(unittest.TestCase):
 
         tensor_ids = torch.LongTensor([EXAMPLE_IDS]).to(device)
         output = model(tensor_ids, attention_mask=ATTN_MASK).logits
+
+        output_gpu_1, output_gpu_2 = output.split(125440, dim=-1)
+        if cuda_available:
+            self.assertEqual(output_gpu_1.mean().item(), MEAN_LOGITS_GPU_1)
+            self.assertEqual(output_gpu_2.mean().item(), MEAN_LOGITS_GPU_2)
+        else:
+            self.assertAlmostEqual(output_gpu_1.mean().item(), MEAN_LOGITS_GPU_1, places=6)  # 1e-06 precision!!
+            self.assertAlmostEqual(output_gpu_2.mean().item(), MEAN_LOGITS_GPU_2, places=6)
+    
+    @torch.no_grad()
+    # @unittest.skip("demonstrating skipping")
+    def test_logits_without_att(self):
+        cuda_available = torch.cuda.is_available()
+        device = torch.device("cuda:0" if cuda_available else "cpu")
+        model = BigScience176BLMHeadModel.from_pretrained(self.path_bigscience_model, use_cache=False).to(device)
+        model.eval()
+
+        EXAMPLE_IDS = [
+            3478,
+            368,
+            109586,
+            35433,
+            2,
+            77,
+            132619,
+            3478,
+            368,
+            109586,
+            35433,
+            2,
+            2175,
+            23714,
+            73173,
+            144252,
+            2,
+            77,
+            132619,
+            3478,
+        ]
+
+        # a = torch.randn(1, 1, 20, 20)
+        # ATTN_MASK = (torch.triu(a, diagonal=1) != 0).to(device)
+
+        MEAN_LOGITS_GPU_1 = -1.823902130126953e-05
+        MEAN_LOGITS_GPU_2 = 1.9431114196777344e-05
+
+        tensor_ids = torch.LongTensor([EXAMPLE_IDS]).to(device)
+        output = model(tensor_ids).logits
 
         output_gpu_1, output_gpu_2 = output.split(125440, dim=-1)
         if cuda_available:
