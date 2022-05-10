@@ -110,6 +110,14 @@ class BigScience176BAttention(nn.Module):
         self.attention_softmax_in_fp32 = config.attention_softmax_in_fp32
         self.masked_softmax_fusion = config.masked_softmax_fusion
 
+        max_positions = config.seq_len
+        self.register_buffer(
+            "causal_mask",
+            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
+                1, 1, max_positions, max_positions
+            ),
+        )
+
         if dtype == torch.float16:
             self.fp16 = True
             self.bf16 = False
@@ -219,6 +227,8 @@ class BigScience176BAttention(nn.Module):
         # Update attention mask for inference. [b, np, sq, sk]
         # ==================================================
 
+        query_length, key_length = query_layer.size(-2), key_layer.size(-2)
+        attention_mask = self.causal_mask[:, :, key_length - query_length : key_length, :key_length].bool()
         if use_cache and attention_mask is not None:
             with torch.no_grad():
                 if layer_past is not None:
