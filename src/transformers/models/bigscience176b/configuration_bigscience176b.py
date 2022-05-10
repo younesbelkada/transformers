@@ -115,7 +115,7 @@ class BigScience176BConfig(PretrainedConfig):
     def __init__(
         self,
         vocab_size=250880,
-        seq_length=2048,
+        seq_length=2048, # TODO make the model agnostic to sequence length
         hidden_size=14336,
         n_layer=70,
         n_head=112,
