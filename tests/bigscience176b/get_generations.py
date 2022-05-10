@@ -38,6 +38,12 @@ model.eval()
 print("successfully parallelized model")
 
 # tokenizer = AutoTokenizer.from_pretrained("bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles")
+
+def generate_from_text(text, tokenizer, max_length=200):
+    input_ids = tokenizer.encode(text, return_tensors='pt')
+    greedy_output = model.generate(input_ids.to('cuda:0'), max_length=max_length)
+    print(tokenizer.decode(greedy_output[0], skip_special_tokens=True))
+
 tokenizer = AutoTokenizer.from_pretrained("bigscience/tokenizer")
 
 input_ids = tokenizer.encode('I enjoy walking with my cute dog', return_tensors='pt')
