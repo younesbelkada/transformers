@@ -60,13 +60,14 @@ BIGSCIENCE176B_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 # Utility functions below:
 
-def attention_mask_func(attention_scores, attention_mask):
+def attention_mask_func(attention_scores, attention_mask, causal_mask):
+    padded_causal_mask = (attention_mask + ~causal_mask).bool()
     # Make use of floats
-    if attention_mask.dtype == torch.bool:
-        return attention_scores.masked_fill_(attention_mask, -10000.0)
+    if padded_causal_mask.dtype == torch.bool:
+        return attention_scores.masked_fill_(padded_causal_mask, -10000.0)
     else:
-        values_to_attend = 1.0 - attention_mask
-        return (values_to_attend * attention_scores) - 10000.0 * attention_mask
+        values_to_attend = 1.0 - padded_causal_mask
+        return (values_to_attend * attention_scores) - 10000.0 * padded_causal_mask 
 
 # def attention_mask_func(attention_scores, attention_mask):
 #     return attention_scores.masked_fill_(attention_mask, -10000.0)
@@ -110,13 +111,7 @@ class BigScience176BAttention(nn.Module):
         self.attention_softmax_in_fp32 = config.attention_softmax_in_fp32
         self.masked_softmax_fusion = config.masked_softmax_fusion
 
-        max_positions = config.seq_length
-        self.register_buffer(
-            "causal_mask",
-            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
-                1, 1, max_positions, max_positions
-            ),
-        )
+        
 
         if dtype == torch.float16:
             self.fp16 = True
@@ -147,8 +142,6 @@ class BigScience176BAttention(nn.Module):
             self.attention_softmax_in_fp32,
             coeff,
         )
-
-        self.mask_func = attention_mask_func
 
         self.query_key_value = nn.Linear(self.hidden_size, 3 * self.hidden_size, dtype=dtype, bias=True)
         # TODO : Try a custom class
@@ -227,18 +220,18 @@ class BigScience176BAttention(nn.Module):
         # Update attention mask for inference. [b, np, sq, sk]
         # ==================================================
 
-        query_length, key_length = query_layer.size(-2), key_layer.size(-2)
-        attention_mask = self.causal_mask[:, :, key_length - query_length : key_length, :key_length].bool()
-        if use_cache and attention_mask is not None:
-            with torch.no_grad():
-                if layer_past is not None:
-                    print(attention_mask)
-                    print(attention_mask.shape)
-                    attention_mask = attention_mask[
-                        ..., attention_scores.size(3) - 1, : attention_scores.size(3)
-                    ].unsqueeze(2)
-                else:
-                    attention_mask = attention_mask[..., : attention_scores.size(3), : attention_scores.size(3)]
+        ### Hardcoding causal mask for inference
+        
+        # if use_cache and attention_mask is not None:
+        #     with torch.no_grad():
+        #         if layer_past is not None:
+        #             print(attention_mask)
+        #             print(attention_mask.shape)
+        #             attention_mask = attention_mask[
+        #                 ..., attention_scores.size(3) - 1, : attention_scores.size(3)
+        #             ].unsqueeze(2)
+        #         else:
+        #             attention_mask = attention_mask[..., : attention_scores.size(3), : attention_scores.size(3)]
 
         # ===========================
         # Attention probs and dropout
@@ -246,19 +239,9 @@ class BigScience176BAttention(nn.Module):
 
         # attention scores and attention mask [b, np, sq, sk]
 
-        # softmax across tp ranks: see here https://github.com/pytorch/pytorch/issues/76232
-        # aggregated_tensors = []
-        # slices = self.num_heads / self.pretraining_tp
-        # for i in range(self.pretraining_tp):
-        #     input_ = attention_scores[:, int(i * slices) : int((i + 1) * slices), :]
-        #     mask_output = self.mask_func(input_, attention_mask) if attention_mask is not None else input_
-        #     aggregated_tensors.append(torch.nn.Softmax(dim=-1)(mask_output))
-
-        # attention_probs = torch.cat(aggregated_tensors, dim=1)
-        # mask_output = (
-        #     self.mask_func(attention_scores, attention_mask) if attention_mask is not None else attention_scores
-        # )
+        
         # attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
+        attention_scores = attention_scores + attention_weights
         attention_probs = self.scale_mask_softmax(attention_scores, attention_mask)
         attention_probs = self.attention_dropout(attention_probs)
 
