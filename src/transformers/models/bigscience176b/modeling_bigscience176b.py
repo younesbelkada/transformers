@@ -895,8 +895,7 @@ class BigScience176BModel(BigScience176BPreTrainedModel):
     BIGSCIENCE176B_START_DOCSTRING,
 )
 class BigScience176BLMHeadModel(BigScience176BPreTrainedModel):
-    # _keys_to_ignore_on_load_missing = [r"attn.masked_bias", r"attn.bias", r"lm_head.weight"]
-    _keys_to_ignore_on_load_missing = [r"h.*.self_attention.scale_mask_softmax.causal_mask"]
+    _keys_to_ignore_on_load_missing = [r"h.*.self_attention.scale_mask_softmax.causal_mask", r"lm_head.weight"]
 
     def __init__(self, config):
         super().__init__(config)
