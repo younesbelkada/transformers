@@ -222,6 +222,8 @@ class BigScience176BAttention(nn.Module):
         if use_cache and attention_mask is not None:
             with torch.no_grad():
                 if layer_past is not None:
+                    print(attention_mask)
+                    print(attention_mask.shape)
                     attention_mask = attention_mask[
                         ..., attention_scores.size(3) - 1, : attention_scores.size(3)
                     ].unsqueeze(2)
