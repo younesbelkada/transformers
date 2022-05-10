@@ -242,7 +242,6 @@ class BigScience176BAttention(nn.Module):
 
         
         # attention_probs = torch.nn.Softmax(dim=-1)(mask_output)
-        attention_scores = attention_scores + attention_weights
         attention_probs = self.scale_mask_softmax(attention_scores, attention_mask)
         attention_probs = self.attention_dropout(attention_probs)
 
