@@ -63,7 +63,7 @@ def get_recent_prompts(path_csv, n_prompts=N_PROMPTS):
 def main():
     model, tokenizer = get_model_and_tokenizer(model_name)
     output_json = {"inputs":[], "outputs":[]}
-    prompts = get_recent_prompts(N_PROMPTS)
+    prompts = get_recent_prompts(path_csv, N_PROMPTS)
     # TODO - batch wise - debug with 350M
     for prompt in prompts:
         output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json, max_length=MAX_LENGTH)
