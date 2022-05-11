@@ -55,7 +55,7 @@ def generate_from_text(model, text, tokenizer, max_length=50, greedy=False, outp
 def get_recent_prompts(path_csv, n_prompts=N_PROMPTS):
     # LINK = "https://docs.google.com/spreadsheets/d/1WzPQ0-1CcQ9ZQPQ7g7L8jYMTThJWpLTnFy19U_7o1Jo/export?format=csv"
     data = pd.read_csv(path_csv)
-    data = data[data['Timestamp'] > datetime.datetime.today().strftime('%Y-%m-%d')]
+    data = data[data['Timestamp'] == (datetime.datetime.today() - datetime.timedelta(1)).strftime('%Y-%m-%d')]
     selected_prompts = np.unique(data["Model Prompt"].values)
     random.shuffle(selected_prompts)
     return selected_prompts[:n_prompts].tolist()
