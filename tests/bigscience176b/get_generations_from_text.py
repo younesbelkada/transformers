@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transformers-sharded"
 output_save_folder = "/gpfswork/rech/six/uan68tv/code/bloom-book/prompts"
 N_PROMPTS = 10
+MAX_LENGTH = 50
 
 def create_dir(directory):
     try:
@@ -39,20 +40,20 @@ def get_model_and_tokenizer(model_name):
     model.eval()
     return model, tokenizer
 
-def generate_from_text(model, text, tokenizer, max_length=200, greedy=False, output_json=None):
+def generate_from_text(model, text, tokenizer, max_length=50, greedy=False, output_json=None):
     input_ids = tokenizer.encode(text, return_tensors='pt')
     if greedy:
         greedy_output = model.generate(input_ids.to('cuda:0'), max_length=max_length)
     else:
         greedy_output = model.generate(input_ids.to('cuda:0'), max_length=max_length, do_sample=True, top_k=0)
     if output_json:
-        output_json['input'].append(text)
-        output_json['output'].append(tokenizer.decode(greedy_output[0], skip_special_tokens=True) + "\n")
+        output_json['inputs'].append(text)
+        output_json['outputs'].append(tokenizer.decode(greedy_output[0], skip_special_tokens=True) + "\n")
     return output_json
 
-def get_recent_prompts(n_prompts=N_PROMPTS):
-    LINK = "https://docs.google.com/spreadsheets/d/1WzPQ0-1CcQ9ZQPQ7g7L8jYMTThJWpLTnFy19U_7o1Jo/export?format=csv"
-    data = pd.read_csv(LINK)
+def get_recent_prompts(path_csv, n_prompts=N_PROMPTS):
+    # LINK = "https://docs.google.com/spreadsheets/d/1WzPQ0-1CcQ9ZQPQ7g7L8jYMTThJWpLTnFy19U_7o1Jo/export?format=csv"
+    data = pd.read_csv(path_csv)
     data = data[data['Timestamp'] > datetime.datetime.today().strftime('%Y-%m-%d')]
     selected_prompts = np.unique(data["Model Prompt"].values)
     random.shuffle(selected_prompts)
@@ -60,14 +61,15 @@ def get_recent_prompts(n_prompts=N_PROMPTS):
 
 def main():
     model, tokenizer = get_model_and_tokenizer(model_name)
-    output_json = {"input":[], "output":[]}
+    output_json = {"inputs":[], "outputs":[]}
     prompts = get_recent_prompts(N_PROMPTS)
+    # TODO - batch wise - debug with 350M
     for prompt in prompts:
-        output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json)
+        output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json, max_length=MAX_LENGTH)
     
     output_dir = os.path.join(output_save_folder, "prompts-{}".format(datetime.datetime.today().strftime('%Y-%m-%d')))
     create_dir(output_dir)
-    with open(os.path.join(output_dir, "output_json.json"), "w") as f:
+    with open(os.path.join(output_dir, "json_output.json"), "w") as f:
         json.dump(output_json, f)
 
 if __name__ == "__main__":
