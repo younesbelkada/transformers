@@ -66,11 +66,19 @@ def main():
     prompts = get_recent_prompts(path_csv, N_PROMPTS)
     # TODO - batch wise - debug with 350M
     for prompt in prompts:
-        output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json, max_length=MAX_LENGTH)
+        output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json, max_length=MAX_LENGTH, greedy=True)
     
     output_dir = os.path.join(output_save_folder, "prompts-{}".format(datetime.datetime.today().strftime('%Y-%m-%d')))
     create_dir(output_dir)
-    with open(os.path.join(output_dir, "json_output.json"), "w") as f:
+    with open(os.path.join(output_dir, "json_output_greedy.json"), "w") as f:
+        json.dump(output_json, f)
+    
+    for prompt in prompts:
+        output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json, max_length=MAX_LENGTH, greedy=False)
+    
+    output_dir = os.path.join(output_save_folder, "prompts-{}".format(datetime.datetime.today().strftime('%Y-%m-%d')))
+    create_dir(output_dir)
+    with open(os.path.join(output_dir, "json_output_nucleus.json"), "w") as f:
         json.dump(output_json, f)
 
 if __name__ == "__main__":
