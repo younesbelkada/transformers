@@ -58,8 +58,8 @@ def get_recent_prompts(path_csv, n_prompts=N_PROMPTS):
     # data = data[data['Timestamp'] == (datetime.datetime.today() - datetime.timedelta(1)).strftime('%Y-%m-%d')]
     data['Timestamp'] = pd.to_datetime(data['Timestamp'], infer_datetime_format=True)
     data['Timestamp'] = data['Timestamp'].apply(lambda x: x.date().strftime('%Y-%m-%d'))
-    data[data['Timestamp'] == datetime.datetime.today().strftime('%Y-%m-%d')]
-    
+    data = data[data['Timestamp'] == datetime.datetime.today().strftime('%Y-%m-%d')]
+
     selected_prompts = np.unique(data["Model Prompt"].values)
     random.shuffle(selected_prompts)
     return selected_prompts[:n_prompts].tolist()
