@@ -11,7 +11,7 @@ logging.set_verbosity_debug()
 MODEL_176B = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transformers-sharded"
 MODEL_350 = "/gpfswork/rech/six/uan68tv/model-conversion/tr11e-350M-transformers-555750"
 
-model_name = MODEL_350 # TOCHANGE if needed
+model_name = MODEL_176B # TOCHANGE if needed
 
 config = AutoConfig.from_pretrained(model_name)
 
@@ -39,9 +39,12 @@ print("successfully parallelized model")
 
 # tokenizer = AutoTokenizer.from_pretrained("bigscience-catalogue-data-dev/byte-level-bpe-tokenizer-no-norm-250k-whitespace-and-eos-regex-alpha-v3-dedup-lines-articles")
 
-def generate_from_text(text, tokenizer, max_length=200):
+def generate_from_text(text, tokenizer, max_length=200, greedy=False):
     input_ids = tokenizer.encode(text, return_tensors='pt')
-    greedy_output = model.generate(input_ids.to('cuda:0'), max_length=max_length)
+    if greedy:
+        greedy_output = model.generate(input_ids.to('cuda:0'), max_length=max_length)
+    else:
+        greedy_output = model.generate(input_ids.to('cuda:0'), max_length=max_length, do_sample=True, top_k=0)
     print(tokenizer.decode(greedy_output[0], skip_special_tokens=True))
 
 tokenizer = AutoTokenizer.from_pretrained("bigscience/tokenizer")
