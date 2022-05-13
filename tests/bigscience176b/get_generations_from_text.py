@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transformers-sharded"
 output_save_folder = "/gpfswork/rech/six/uan68tv/code/bloom-book/prompts"
 path_csv = "/gpfswork/rech/six/uan68tv/code/bloom-book/raw_csv/input_csv.csv"
-N_PROMPTS = 10
+N_PROMPTS = 30
 MAX_LENGTH = 50
 
 def create_dir(directory):
