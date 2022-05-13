@@ -14,7 +14,7 @@ model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transfor
 output_save_folder = "/gpfswork/rech/six/uan68tv/code/bloom-book/prompts"
 path_csv = "/gpfswork/rech/six/uan68tv/code/bloom-book/raw_csv/input_csv.csv"
 N_PROMPTS = 30
-MAX_LENGTH = 50
+MAX_LENGTH = 70
 
 def create_dir(directory):
     try:
@@ -77,6 +77,7 @@ def main():
     with open(os.path.join(output_dir, "json_output_greedy.json"), "w") as f:
         json.dump(output_json, f)
     
+    output_json = {"inputs":[], "outputs":[]}
     for prompt in prompts:
         output_json = generate_from_text(model, prompt, tokenizer, output_json=output_json, max_length=MAX_LENGTH, greedy=False)
     
