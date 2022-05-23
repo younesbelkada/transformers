@@ -10,11 +10,12 @@ import numpy as np
 from transformers.models.bigscience176b import BigScience176BLMHeadModel
 from transformers import AutoTokenizer
 
-model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transformers-sharded"
+# model_name = "/gpfswork/rech/six/uan68tv/model-conversion/main-gs-47400-transformers-sharded"
+model_name = "/gpfsssd/worksf/projects/rech/six/uan68tv/model-conversion/bloom"
 output_save_folder = "/gpfswork/rech/six/uan68tv/code/bloom-book/prompts"
 path_csv = "/gpfswork/rech/six/uan68tv/code/bloom-book/raw_csv/input_csv.csv"
 N_PROMPTS = 90
-MAX_LENGTH = 70
+MAX_LENGTH = 100
 
 def create_dir(directory):
     try:
@@ -58,7 +59,7 @@ def get_recent_prompts(path_csv, n_prompts=N_PROMPTS):
     # data = data[data['Timestamp'] == (datetime.datetime.today() - datetime.timedelta(1)).strftime('%Y-%m-%d')]
     data['Timestamp'] = pd.to_datetime(data['Timestamp'], infer_datetime_format=True)
     data['Timestamp'] = data['Timestamp'].apply(lambda x: x.date().strftime('%Y-%m-%d'))
-    data = data[data['Timestamp'] >= (datetime.datetime.today()-datetime.timedelta(3)).strftime('%Y-%m-%d')]
+    data = data[data['Timestamp'] >= (datetime.datetime.today()-datetime.timedelta(5)).strftime('%Y-%m-%d')]
 
     selected_prompts = np.unique(data["Model Prompt"].values)
     random.shuffle(selected_prompts)
