@@ -167,8 +167,14 @@ def pre_process_alibi_for_pad(alibi, attention_mask, num_heads):
         alibi[index * num_heads : (index + 1) * num_heads] = slice_to_modify
     return alibi
 
-
+@torch.jit.script
 def bias_dropout_add(x, residual, prob, training):
+    # type: (Tensor, Tensor, float, bool) -> Tensor
+    out = nn.functional.dropout(x, p=prob, training=training)
+    out = residual + out
+    return out
+
+def bias_dropout_add_unfused(x, residual, prob, training):
     # type: (Tensor, Tensor, float, bool) -> Tensor
     out = nn.functional.dropout(x, p=prob, training=training)
     out = residual + out
@@ -244,6 +250,7 @@ class BloomAttention(nn.Module):
         self.attention_softmax_in_fp32 = config.attention_softmax_in_fp32
         self.masked_softmax_fusion = config.masked_softmax_fusion
         self.hidden_dropout = config.hidden_dropout
+        self.bias_dropout_fusion = config.bias_dropout_fusion
 
         if self.head_dim * self.num_heads != self.hidden_size:
             raise ValueError(
@@ -286,6 +293,7 @@ class BloomAttention(nn.Module):
         # apply preprocessing if the input is padded
         if attention_mask is not None and 0 in attention_mask:
             alibi = pre_process_alibi_for_pad(alibi, attention_mask, self.num_heads)
+
 
         mixed_x_layer = self.query_key_value(hidden_states)
 
@@ -381,7 +389,16 @@ class BloomAttention(nn.Module):
 
         output = output_tensor.transpose(1, 0)
         # re-enable torch grad to enable fused optimization.
-        output = bias_dropout_add(output, residual, self.hidden_dropout, self.training)
+        if self.bias_dropout_fusion:
+            with torch.enable_grad():
+                output = bias_dropout_add(
+                    output, residual, self.hidden_dropout, self.training
+                )
+        else:
+            output = bias_dropout_add_unfused(
+                output, residual, self.hidden_dropout, self.training
+            )
+
 
         outputs = (output, present)
         if output_attentions:
@@ -401,6 +418,7 @@ class BloomMLP(nn.Module):
         self.dense_h_to_4h = nn.Linear(hidden_size, 4 * hidden_size)
         self.dense_4h_to_h = nn.Linear(4 * hidden_size, hidden_size)
         self.hidden_dropout = config.hidden_dropout
+        self.bias_dropout_fusion = config.bias_dropout_fusion
 
     def forward(self, hidden_states, residual):
         hidden_states = self.activation_func(
@@ -419,7 +437,15 @@ class BloomMLP(nn.Module):
             intermediate_output = self.dense_4h_to_h(hidden_states)
 
         # re-enable torch grad to enable fused optimization.
-        output = bias_dropout_add(intermediate_output, residual, self.hidden_dropout, self.training)
+        if self.bias_dropout_fusion:
+            with torch.enable_grad():
+                output = bias_dropout_add(
+                    intermediate_output, residual, self.hidden_dropout, self.training
+                )
+        else:
+            output = bias_dropout_add_unfused(
+                intermediate_output, residual, self.hidden_dropout, self.training
+            )
 
         return output
 
@@ -437,6 +463,7 @@ class BloomBlock(nn.Module):
         self.mlp = BloomMLP(config)
 
         self.apply_residual_connection_post_layernorm = config.apply_residual_connection_post_layernorm
+        self.bias_dropout_fusion = config.bias_dropout_fusion
         self.hidden_dropout = config.hidden_dropout
 
     def forward(
