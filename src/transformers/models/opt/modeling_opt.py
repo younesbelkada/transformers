@@ -84,6 +84,22 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
 
     return inverted_mask.masked_fill(inverted_mask.bool(), torch.finfo(dtype).min)
 
+# class OPTSoftmax(nn.Module):
+#     def __init__(self, upscale_in_fp32=False, dim=-1):
+#         super().__init__()
+#         self.upscale_in_fp32 = upscale_in_fp32
+#         self.dim = dim
+        
+#     def forward(self, x, attention_mask=None):
+#         input_dtype = x.dtype
+#         if attention_mask is not None:
+#             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
+#             attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
+#             attn_weights_before_softmax = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+
+#         attn_weights = nn.functional.softmax(attn_weights_before_softmax, dim=-1, dtype=torch.float32)
+
+#         return torch.nn.functional.softmax(x, dim=self.dim)
 
 class OPTLearnedPositionalEmbedding(nn.Embedding):
     """
@@ -215,7 +231,7 @@ class OPTAttention(nn.Module):
             attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
             attn_weights_before_softmax = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
-        attn_weights = nn.functional.softmax(attn_weights_before_softmax, dim=-1, dtype=torch.float32)
+        attn_weights = nn.functional.softmax(attn_weights_before_softmax, dim=-1, dtype=torch.float32).to(attn_weights_before_softmax.dtype)
 
         if layer_head_mask is not None:
             if layer_head_mask.size() != (self.num_heads,):
