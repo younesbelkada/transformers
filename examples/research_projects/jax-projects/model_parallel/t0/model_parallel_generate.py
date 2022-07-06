@@ -43,6 +43,7 @@ model, params = FlaxT5ForConditionalGeneration.from_pretrained(
 )
 tokenizer = T5TokenizerFast.from_pretrained("bigscience/T0")
 
+# flax/linen/partitioning / partioning_test l.177
 
 # create the partition spec using the rules defined in `partitions.py`
 # The `partition.py` file defines the `PyTree` of `ParitionSpec` for the T5 model which describes how the model will be sharded.
@@ -62,9 +63,11 @@ def to_fp32(t):
 
 shard_params = pjit(
     lambda params: to_bf16(params) if platform == "tpu" else to_fp32(params),
-    in_axis_resources=(partition_spec,),
+    in_axis_resources=(partition_spec,), # passed it twice so that you shard the params before calling the function # for every parametzer you have to specifcy the parition spec
     out_axis_resources=partition_spec,
 )
+
+# we have to call this before running the inference to set the params to the devices 
 
 # define the mesh, this can be defined however you like
 # NOTE: to be able to shard the model, the sharded dimention needs to be a multiple of devices it'll be sharded on.
@@ -87,7 +90,7 @@ def generate(params, input_ids, attention_mask):
     return output_ids
 
 p_generate = pjit(generate, in_axis_resources=(partition_spec, P("dp"), P("dp")), out_axis_resources=P("dp"))
-
+# in axis resourdes and out axis resources are partition specs => array where we specify which part do we shard on which device
 
 # NOTE: Since `pjit` compiles the code, we need to fix the generations params like max_length, BS
 # changing this values, will cause re-compilation (which is fast on TPU V3s)
@@ -102,3 +105,10 @@ with maps.mesh(mesh.devices, mesh.axis_names):
 
 generated_text = tokenizer.batch_decode(gen_ids, skip_special_tokens=True)
 print("generated text: ", generated_text)
+
+# Step1: décider une convention de comment nommer les layers 
+## Main layers to shard: Embeddings + Self Attention blocks
+## En entrée il prendrait un dictionnaire de ces named tuples associé aux axes de partionnement
+## Faire attention à ce que le output soit bien en dehors des MP/TP ranks!
+# Stpe2: Utiliser le unflattened dict et parcourir les weights du modèle, assigner chaque weight correspondant à l'axe de partionaement correct
+# Step3: 
