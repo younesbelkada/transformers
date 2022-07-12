@@ -65,6 +65,7 @@ from .utils import (
     has_file,
     hf_bucket_url,
     is_accelerate_available,
+    is_bitsandbytes_available,
     is_offline_mode,
     is_remote_url,
     logging,
@@ -81,6 +82,9 @@ if is_accelerate_available():
         save_offload_index,
         set_module_tensor_to_device,
     )
+
+# if is_bitsandbytes_available():
+#     from .bitsandbytes_utils import init_empty_weights_8bit, replace_8bit_linear
 
 logger = logging.get_logger(__name__)
 
@@ -124,11 +128,10 @@ def replace_8bit_linear(model):
     for n, module in model.named_children():
         if len(list(module.children())) > 0:
             replace_8bit_linear(module)
-
-        if isinstance(module, nn.Linear):
+        if isinstance(module, nn.Linear) and n != "lm_head":
             with init_empty_weights():
                 model._modules[n] = bnb.nn.Linear8bitLt(
-                    module.in_features, module.out_features, module.bias is not None, has_fp16_weights=True
+                    module.in_features, module.out_features, module.bias is not None, has_fp16_weights=False, threshold=6.0
                 )
     return model
 
@@ -2078,9 +2081,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             logger.info("Detected DeepSpeed ZeRO-3: activating zero.init() for this model")
             init_contexts = [deepspeed.zero.Init(config_dict_or_path=deepspeed_config())] + init_contexts
         elif load_in_8bit:
-
             init_contexts = [init_empty_weights()]  # Force enable init empty weights
-
             logger.info("Detected 8-bit loading: activating 8-bit loading for this model")
         elif low_cpu_mem_usage:
             init_contexts.append(init_empty_weights())
