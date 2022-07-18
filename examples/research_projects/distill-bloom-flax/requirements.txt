@@ -1,0 +1,12 @@
+wandb
+simple_parsing
+openpyxl
+python-dotenv
+py7zr
+rarfile
+zstandard
+stanza==1.2.0
+stanza-batch
+nltk
+indic-nlp-library
+underthesea
