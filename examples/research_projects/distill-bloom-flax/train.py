@@ -1,7 +1,7 @@
 
 from transformers import FlaxAutoModelForCausalLM
 
-from dataloader import AutoRegressiveDataLoader
+from dataloader import AutoRegressiveDataLoader, AutoRegressiveDataset
 from distiller import Distiller
 from hparams import Parameters
 
@@ -10,7 +10,8 @@ def main():
     params = Parameters.parse().hparams
 
     # 2: Get dataset
-    dataloader = AutoRegressiveDataLoader(params)
+    dataset = AutoRegressiveDataset(params)
+    dataloader = AutoRegressiveDataLoader(dataset, params.batch_size)
 
     # 3: Get teacher and student models
     # TODO: pass empty models and the distiller should take care of doing TP

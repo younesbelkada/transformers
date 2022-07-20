@@ -22,8 +22,9 @@ class Hparams:
 
     # Dataset params
     epochs: int = 2
-    batch_size: int = 64
-    path_bin_data: str = "/mnt/disks/persist/younes_data/binarized_data"
+    batch_size: int = 32
+    path_bin_data: str = "/home/sanchitgandhi/cache/younes_files/binarized_data"
+    max_seq_len: int = 2048
 
 @dataclass
 class Parameters:
