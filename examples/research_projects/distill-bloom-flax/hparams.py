@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import simple_parsing
 
+
 @dataclass
 class Hparams:
     """
@@ -37,9 +38,10 @@ class Hparams:
     optimizer_name: str = "adam"
     step_size: int = 1
 
+
 @dataclass
 class Parameters:
-    """ Global parameters options."""
+    """Global parameters options."""
 
     hparams: Hparams = Hparams()
 
