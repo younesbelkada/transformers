@@ -19,7 +19,7 @@ def replace_by_another_string(batch, max_seq_len):
     new_batch = []
     for b in batch:
         while len(b) < max_seq_len:
-            random_index = random.randint(0, len(batch))
+            random_index = random.randint(0, len(batch)-1)
             b.extend(batch[random_index])
         new_batch.append(b)
     return new_batch
@@ -45,6 +45,8 @@ class AutoRegressiveDataset(data.Dataset):
     
     def _update_current_file(self):
         self.current_file_index += 1
+        if self.current_file_index == len(self.list_bin_files):
+            self.current_file_index = 0 
         bin_file = open(os.path.join(self.path_bin_files, self.list_bin_files[self.current_file_index]), "rb")
         self.current_data = pickle.load(bin_file)
 
@@ -62,7 +64,7 @@ class AutoRegressiveDataset(data.Dataset):
         return data
 
 class AutoRegressiveDataLoader(data.DataLoader):
-    def __init__(self, dataset, batch_size, shuffle=False, sampler=None, num_workers=16):
+    def __init__(self, dataset, batch_size, shuffle=False, sampler=None, num_workers=2):
         super(self.__class__, self).__init__(dataset,
         batch_size=batch_size,
         shuffle=shuffle,

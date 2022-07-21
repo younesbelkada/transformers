@@ -35,6 +35,7 @@ FLAX_MODEL_MAPPING_NAMES = OrderedDict(
         ("big_bird", "FlaxBigBirdModel"),
         ("blenderbot", "FlaxBlenderbotModel"),
         ("blenderbot-small", "FlaxBlenderbotSmallModel"),
+        ("bloom", "FlaxBloomModel"),
         ("clip", "FlaxCLIPModel"),
         ("distilbert", "FlaxDistilBertModel"),
         ("electra", "FlaxElectraModel"),
@@ -134,6 +135,7 @@ FLAX_MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gpt_neo", "FlaxGPTNeoForCausalLM"),
         ("gptj", "FlaxGPTJForCausalLM"),
         ("opt", "FlaxOPTForCausalLM"),
+        ("bloom", "FlaxBloomForCausalLM"),
         ("roberta", "FlaxRobertaForCausalLM"),
         ("xglm", "FlaxXGLMForCausalLM"),
     ]
