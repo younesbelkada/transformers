@@ -23,13 +23,16 @@ import wandb
 
 import optax
 
-from flax.training.train_state import TrainState
+# from flax.training.train_state import TrainState
+import flax
+from flax import optim
 from flax.core.frozen_dict import freeze
+from flax.core.frozen_dict import FrozenDict
 from jax import jit, vmap, pmap
 from jax.experimental import PartitionSpec as P
 
 from t5x.partitioning import PjitPartitioner
-from t5x.train_state import InferenceState
+from t5x.train_state import FlaxOptimTrainState, InferenceState
 
 
 from logging_utils import logger
@@ -54,7 +57,10 @@ class Distiller:
 
         logger.info("Initializing Optax optimizer states")
 
-        tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
+        # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
+        optimizer_def = optim.GradientDescent(learning_rate=0.1)
+        optimizer = optimizer_def.create(self.student_params)
+        self.state = FlaxOptimTrainState(optimizer)
 
         logger.info("Initializing Partitionner")
 
@@ -63,7 +69,7 @@ class Distiller:
 
         param_axes = jax.eval_shape(self._init_fn)["params_axes"]
 
-        state = InferenceState(
+        dummy_state = InferenceState(
             step=jnp.array(0),
             params=freeze(self.student_model.params_shape_tree),
             params_axes=freeze(param_axes),
@@ -71,20 +77,23 @@ class Distiller:
             flax_mutables_axes=param_axes,
         )
 
-        mesh_axes = self.partitioner.get_mesh_axes(state)
+        mesh_axes = self.partitioner.get_mesh_axes(dummy_state)
         self.params_spec = mesh_axes.params
+
+        dummy_state = None
 
         self._partition_student_model()
         self._partition_teacher_model()
+        self._partition_optimizer_state()
         self._init_p_forward_fn()
 
-        logger.info("Initializing Flax TrainState object")
+        # logger.info("Initializing Flax TrainState object")
 
-        self.state = TrainState.create(
-            apply_fn=self.student_model.__call__,
-            params=self.student_params,
-            tx=tx,
-        )
+        # self.state = TrainState.create(
+        #     apply_fn=self.student_model.__call__,
+        #     params=self.student_params,
+        #     tx=tx,
+        # )
 
     def _init_fn(self):
         input_shape = (1, 1)
@@ -96,6 +105,10 @@ class Distiller:
     def _partition_student_model(self):
         shard_params = self.partitioner.partition(self.student_model.to_bf16, (self.params_spec,), self.params_spec)
         self.student_params = shard_params(freeze(self.student_params))
+
+    def _partition_optimizer_state(self):
+        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
+        self.state = shard_params(freeze(self.state))
 
     def _partition_teacher_model(self):
         shard_params = self.partitioner.partition(self.teacher_model.to_bf16, (self.params_spec,), self.params_spec)
@@ -159,6 +172,34 @@ class Distiller:
         loss = one_hot_label * (-jnp.log(probs_student))
         return jnp.array(jnp.sum(loss))
 
+    def _log_param_norm(self, grad):
+        layer_grad_norm = jax.tree_map(jnp.linalg.norm, grad).unfreeze()
+        logs = {
+            "layer_grad_norm": layer_grad_norm,
+            "transformer_norm": jnp.linalg.norm(jax.tree_util.tree_leaves(layer_grad_norm["transformer"])),
+        }
+        logs["grad_norm"] = jnp.linalg.norm([logs["transformer"]])
+
+        # compute parameter norms over all layers, total encoder, total decoder and global for detailed monitoring
+        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.student_params).unfreeze()
+        logs["layer_param_norm"] = layer_param_norm
+        logs["transformer_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm["transformer"]))
+        logs["param_norm"] = jnp.linalg.norm([logs["transformer"]])
+        return logs
+
+    def _log_metrics(self, metrics, step, prefix=None):
+        if jax.process_index() == 0:
+            log_metrics = {}
+            for k, v in metrics.items():
+                if "layer" in k:
+                    log_metrics[f"{k}/"] = v
+                elif prefix is not None:
+                    log_metrics[f"{prefix}/{k}"] = v
+                else:
+                    log_metrics[k] = v
+
+            wandb.log(log_metrics, step)
+
     def train(self):
         wandb.init(
             project=self.params.wandb_project,
@@ -166,6 +207,8 @@ class Distiller:
             config=self.params,
             dir=self.params.wandb_logs,
         )
+
+        step = 0
 
         for epoch in range(self.params.epochs):
             for batch in self.dataset:
@@ -188,5 +231,15 @@ class Distiller:
                     self.state = self.state.apply_gradients(grads=grad)
 
                     # step4: yey! log the results
-                    wandb.log({"loss": loss.item()})
+                    logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}
+
+                    # log param norm and grad norm
+                    # Copied from: https://github.com/sanchit-gandhi/seq2seq-speech/blob/cfc6d73959486f5bd71c623ddd95843d62f5a614/run_flax_speech_recognition_seq2seq.py#L638
+                    # compute gradient norms over all layers, total encoder, total decoder and global for detailed monitoring
+                    norm_logs = self._log_param_norm(grad)
+                    logs.update(norm_logs)
+                    self._log_metrics(logs, step)
+
+                    step += 1
+
                 break

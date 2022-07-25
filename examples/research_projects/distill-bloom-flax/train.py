@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from dataloader import AutoRegressiveDataLoader, AutoRegressiveDataset
-from distiller import Distiller, teacher_step
+from distiller import Distiller
 from hparams import Parameters
 from transformers.models.bloom.modeling_flax_bloom import FlaxBloomForCausalLM
 
