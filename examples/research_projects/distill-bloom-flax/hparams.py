@@ -13,6 +13,9 @@ class Hparams:
         - wandb parameters
     """
 
+    # Global params
+    seed: int = 42
+
     # wandb params
     wandb_entity: str = "distill-bloom"
     wandb_project: str = "test-small-distillation"
@@ -25,14 +28,14 @@ class Hparams:
 
     # Dataset params
     epochs: int = 2
-    batch_size: int = 32
+    batch_size: int = 8
     num_workers: int = 0
     path_bin_data: str = "/home/sanchitgandhi/cache/younes_files/binarized_data"
-    max_seq_len: int = 2048
+    max_seq_len: int = 512
     vocab_size: int = 250880
 
     # Learning params
-    learning_rate: float = 0.001
+    learning_rate: float = 0.0001
 
     # optimizer params
     optimizer_name: str = "adam"
