@@ -26,6 +26,7 @@ import optax
 # from flax.training.train_state import TrainState
 import flax
 from flax import optim
+from flax.linen import partitioning as flax_partitioning
 from flax.core.frozen_dict import freeze
 from flax.core.frozen_dict import FrozenDict
 from jax import jit, vmap, pmap
@@ -37,6 +38,8 @@ from t5x.train_state import FlaxOptimTrainState, InferenceState
 
 from logging_utils import logger
 from utils.distill_utils import one_hot, logical_axis_rules_full
+
+AxisMetadata = flax_partitioning.AxisMetadata
 
 
 class Distiller:
@@ -54,13 +57,6 @@ class Distiller:
 
         rng = jax.random.PRNGKey(self.params.seed)
         self.rng, self.dropout_rng = jax.random.split(rng)
-
-        logger.info("Initializing Optax optimizer states")
-
-        # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
-        optimizer_def = optim.GradientDescent(learning_rate=0.1)
-        optimizer = optimizer_def.create(self.student_params)
-        self.state = FlaxOptimTrainState(optimizer)
 
         logger.info("Initializing Partitionner")
 
@@ -80,20 +76,19 @@ class Distiller:
         mesh_axes = self.partitioner.get_mesh_axes(dummy_state)
         self.params_spec = mesh_axes.params
 
+        # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
+        optimizer_def = optim.GradientDescent(learning_rate=0.1)
+        param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
+        # optimizer = optimizer_def.create(self.student_params)
+        model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
+        self.state = FlaxOptimTrainState.create(optimizer_def, model_variables)
+
         dummy_state = None
 
-        self._partition_student_model()
+        # self._partition_student_model()
         self._partition_teacher_model()
-        self._partition_optimizer_state()
+        # self._partition_optimizer_state()
         self._init_p_forward_fn()
-
-        # logger.info("Initializing Flax TrainState object")
-
-        # self.state = TrainState.create(
-        #     apply_fn=self.student_model.__call__,
-        #     params=self.student_params,
-        #     tx=tx,
-        # )
 
     def _init_fn(self):
         input_shape = (1, 1)
@@ -178,13 +173,13 @@ class Distiller:
             "layer_grad_norm": layer_grad_norm,
             "transformer_norm": jnp.linalg.norm(jax.tree_util.tree_leaves(layer_grad_norm["transformer"])),
         }
-        logs["grad_norm"] = jnp.linalg.norm([logs["transformer"]])
+        logs["transformer_grad_norm"] = jnp.linalg.norm([logs["transformer_norm"]])
 
         # compute parameter norms over all layers, total encoder, total decoder and global for detailed monitoring
-        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.student_params).unfreeze()
+        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.state.params).unfreeze()
         logs["layer_param_norm"] = layer_param_norm
         logs["transformer_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm["transformer"]))
-        logs["param_norm"] = jnp.linalg.norm([logs["transformer"]])
+        logs["param_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm))
         return logs
 
     def _log_metrics(self, metrics, step, prefix=None):
@@ -225,10 +220,14 @@ class Distiller:
                     # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
                     grad_fn = jax.value_and_grad(self._compute_loss)
                     loss, grad = grad_fn(self.state.params, logits_teacher, batch[:, :i], one_hot_labels)
-                    # grad = jax.lax.pmean(grad, "batch")
+
+                    # Average the gradients and the loss
+                    grad = jax.tree_map(lambda g: g / self.params.batch_size, grad)
+                    loss = jax.tree_map(lambda l: l / self.params.batch_size, loss)
                     # End copied lines
 
-                    self.state = self.state.apply_gradients(grads=grad)
+                    # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
+                    self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
 
                     # step4: yey! log the results
                     logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}

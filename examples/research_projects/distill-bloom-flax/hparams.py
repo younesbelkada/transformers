@@ -27,7 +27,7 @@ class Hparams:
     student_path: str = "bigscience/distill-bloom-1b3"
 
     # Dataset params
-    epochs: int = 2
+    epochs: int = 1
     batch_size: int = 8
     num_workers: int = 0
     path_bin_data: str = "/home/sanchitgandhi/cache/younes_files/binarized_data"
@@ -35,7 +35,7 @@ class Hparams:
     vocab_size: int = 250880
 
     # Learning params
-    learning_rate: float = 0.0001
+    learning_rate: float = 0.00001
 
     # optimizer params
     optimizer_name: str = "adam"

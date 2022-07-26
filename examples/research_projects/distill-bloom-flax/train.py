@@ -23,8 +23,8 @@ def main():
     config = student.config
     student_params = student.params
 
-    student = FlaxBloomForCausalLM(config, _do_init=False, dtype=jnp.bfloat16, use_scan=True)
-    teacher = FlaxBloomForCausalLM(teacher_config, _do_init=False, dtype=jnp.bfloat16, use_scan=True)
+    student = FlaxBloomForCausalLM(config, _do_init=False, dtype=jnp.float16, use_scan=True)
+    teacher = FlaxBloomForCausalLM(teacher_config, _do_init=False, dtype=jnp.float16, use_scan=True)
 
     # 4: Get distiller
     distiller = Distiller(params, dataloader, teacher, student, student_params, teacher_params)
