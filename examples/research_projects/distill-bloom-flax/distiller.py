@@ -80,6 +80,8 @@ class Distiller:
         mesh_axes = self.partitioner.get_mesh_axes(dummy_state)
         self.params_spec = mesh_axes.params
 
+        self._partition_student_model()
+
         # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
         optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
         param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
@@ -102,15 +104,16 @@ class Distiller:
         return self.student_model.module.init(rng, input_ids, attention_mask, return_dict=False)
 
     def _partition_student_model(self):
-        shard_params = self.partitioner.partition(self.student_model.to_bf16, (self.params_spec,), self.params_spec)
+        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
         self.student_params = shard_params(freeze(self.student_params))
 
     def _partition_optimizer_state(self):
         shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
-        self.state = shard_params(freeze(self.state))
+        self.state.params = shard_params(freeze(self.state.params))
+        self.state._optimizer.target = shard_params(freeze(self.state._optimizer.target))
 
     def _partition_teacher_model(self):
-        shard_params = self.partitioner.partition(self.teacher_model.to_bf16, (self.params_spec,), self.params_spec)
+        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
         self.teacher_params = shard_params(freeze(self.teacher_params))
 
     def _init_p_forward_fn(self):
@@ -147,7 +150,6 @@ class Distiller:
 
         return jnp.array(_ce_loss + _lm_loss)
 
-    # @jit
     def _teacher_step(self, params, sequence):
         # sequence = jnp.expand_dims(sequence, 0)
         final_logits = self.teacher_model(sequence, params=params).logits[:, -1, :]
@@ -160,8 +162,8 @@ class Distiller:
         if self.dtype != jnp.float32:
             logits_student = to_bf16(logits_student)
             logits_teacher = to_bf16(logits_teacher)
-        probs_teacher = nn.softmax(logits_teacher, axis=-1)
-        probs_student = nn.softmax(logits_student, axis=-1)
+        probs_teacher = nn.softmax(logits_teacher, axis=-1) + 1e-8
+        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8
 
         loss = probs_teacher * (-jnp.log(probs_student))
         return jnp.array(jnp.sum(loss))
@@ -173,7 +175,7 @@ class Distiller:
         if self.dtype != jnp.float32:
             logits_student = to_bf16(logits_student)
             one_hot_label = to_bf16(one_hot_label)
-        probs_student = nn.softmax(logits_student, axis=-1)
+        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8
 
         loss = one_hot_label * (-jnp.log(probs_student))
         return jnp.array(jnp.sum(loss))
@@ -241,6 +243,7 @@ class Distiller:
 
                     # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
                     self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
+                    self.student_params = self.state.params
 
                     # step4: yey! log the results
                     logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}

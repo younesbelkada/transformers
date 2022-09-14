@@ -37,7 +37,7 @@ class Hparams:
     vocab_size: int = 250880
 
     # Learning params
-    learning_rate: float = 0.000001
+    learning_rate: float = 0.0001
 
     # optimizer params
     optimizer_name: str = "adam"
