@@ -12,24 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
-import os
-import time
-
 import jax
 import jax.nn as nn
 import jax.numpy as jnp
 import wandb
-
-import optax
 
 # from flax.training.train_state import TrainState
 import flax
 from flax import optim
 from flax.linen import partitioning as flax_partitioning
 from flax.core.frozen_dict import freeze
-from flax.core.frozen_dict import FrozenDict
-from jax import jit, vmap, pmap
 from jax.experimental import PartitionSpec as P
 
 from t5x.partitioning import PjitPartitioner
@@ -113,12 +105,15 @@ class Distiller:
             Initialize the optimizer by just creating it using t5x.FlaxOptimTrainState
             The optimizer does not need to be partitionned if the partition function of the model has been called before 
             calling this function.
+
+            Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L179
         """
         # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
         optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
         param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
         # optimizer = optimizer_def.create(self.student_params)
-        model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
+        # model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
+        model_variables = {"params": self.student_params, "params_axes": param_axes}
         self.state = FlaxOptimTrainState.create(optimizer_def, model_variables)
 
     def _init_fn(self):
@@ -274,7 +269,6 @@ class Distiller:
 
                     # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
                     self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
-                    self.student_params = self.state.params
 
                     # step4: yey! log the results
                     logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}
