@@ -41,11 +41,15 @@ from utils.distill_utils import one_hot, logical_axis_rules_full
 
 AxisMetadata = flax_partitioning.AxisMetadata
 
+# copied from: https://github.com/sanchit-gandhi/seq2seq-speech/blob/cfc6d73959486f5bd71c623ddd95843d62f5a614/run_flax_speech_recognition_seq2seq.py#L338
+def to_bf16(t):
+    return jax.tree_map(lambda x: x.astype(jnp.bfloat16) if x.dtype == jnp.float32 else x, t)
 
 class Distiller:
-    def __init__(self, params, dataset, teacher, student, student_params, teacher_params):
+    def __init__(self, params, dataset, teacher, student, student_params, teacher_params, dtype):
         self.params = params
         self.dataset = dataset
+        self.dtype = dtype
 
         self.teacher_model = teacher  # Empty modules
         self.student_model = student
@@ -77,7 +81,7 @@ class Distiller:
         self.params_spec = mesh_axes.params
 
         # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
-        optimizer_def = optim.GradientDescent(learning_rate=0.1)
+        optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
         param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
         # optimizer = optimizer_def.create(self.student_params)
         model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
@@ -140,6 +144,7 @@ class Distiller:
         # STEP2: get ce loss
         _ce_loss = self._ce_loss(logits_student, logits_teacher)
         _lm_loss = self._lm_loss(logits_student, one_hot_label)
+
         return jnp.array(_ce_loss + _lm_loss)
 
     # @jit
@@ -152,6 +157,9 @@ class Distiller:
         """
         Distillation loss as defined in Distill-BERT https://arxiv.org/pdf/1910.01108.pdf
         """
+        if self.dtype != jnp.float32:
+            logits_student = to_bf16(logits_student)
+            logits_teacher = to_bf16(logits_teacher)
         probs_teacher = nn.softmax(logits_teacher, axis=-1)
         probs_student = nn.softmax(logits_student, axis=-1)
 
@@ -162,6 +170,9 @@ class Distiller:
         """
         Distillation loss as defined in Distill-BERT https://arxiv.org/pdf/1910.01108.pdf
         """
+        if self.dtype != jnp.float32:
+            logits_student = to_bf16(logits_student)
+            one_hot_label = to_bf16(one_hot_label)
         probs_student = nn.softmax(logits_student, axis=-1)
 
         loss = one_hot_label * (-jnp.log(probs_student))
@@ -220,6 +231,8 @@ class Distiller:
                     # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
                     grad_fn = jax.value_and_grad(self._compute_loss)
                     loss, grad = grad_fn(self.state.params, logits_teacher, batch[:, :i], one_hot_labels)
+
+                    print("Loss ={}".format(loss.item()))
 
                     # Average the gradients and the loss
                     grad = jax.tree_map(lambda g: g / self.params.batch_size, grad)

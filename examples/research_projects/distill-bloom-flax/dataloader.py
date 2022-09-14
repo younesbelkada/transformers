@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+from glob import glob
 from functools import partial
 from multiprocessing import Pool
 
@@ -35,7 +36,8 @@ def truncate_and_extend(batch, max_seq_len):
 class AutoRegressiveDataset(data.Dataset):
     def __init__(self, params):
         self.path_bin_files = params.path_bin_data
-        self.list_bin_files = os.listdir(self.path_bin_files)
+        # self.list_bin_files = os.listdir(self.path_bin_files)
+        self.list_bin_files = glob(self.path_bin_files + "//*" + params.ext, recursive=True)
 
         self.max_seq_len = params.max_seq_len
         self.truncate_func = partial(numpy_collate, max_seq_len=self.max_seq_len)
