@@ -64,6 +64,31 @@ class Distiller:
 
         logger.info("Initializing Partitionner")
 
+        # Here we initialize the Jax partitionner to get the param specs
+        self._init_partitionner()
+
+        # Step 1: partition the student model! 
+        self._partition_student_model()
+
+        # Step 2: initialize optimizer
+        # No need to partition the optimizer state since this is done automatically if the student
+        # model is partitioned
+        self._init_optimizer()
+
+        # Step 3: partition the student model
+        self._partition_teacher_model()
+
+        # Step 4: partition all the necessary forward functions
+        self._init_p_forward_fn()
+
+    def _init_partitionner(self):
+        r"""
+            Utility function to initialize the partitionner. This is needed to partition the rest 
+            of the attributes (model, optimizer) that are used later.
+
+            A dummy state needs to be created to get the mesh_axes object.
+            Function inspired from the snippet: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L67-L82 
+        """
         num_mp_partitions = jax.device_count()
         self.partitioner = PjitPartitioner(num_mp_partitions, logical_axis_rules=logical_axis_rules_full)
 
@@ -80,21 +105,21 @@ class Distiller:
         mesh_axes = self.partitioner.get_mesh_axes(dummy_state)
         self.params_spec = mesh_axes.params
 
-        self._partition_student_model()
+        # Delete the intermediate variable
+        dummy_state = None
 
+    def _init_optimizer(self):
+        r"""
+            Initialize the optimizer by just creating it using t5x.FlaxOptimTrainState
+            The optimizer does not need to be partitionned if the partition function of the model has been called before 
+            calling this function.
+        """
         # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
         optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
         param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
         # optimizer = optimizer_def.create(self.student_params)
         model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
         self.state = FlaxOptimTrainState.create(optimizer_def, model_variables)
-
-        dummy_state = None
-
-        # self._partition_student_model()
-        self._partition_teacher_model()
-        # self._partition_optimizer_state()
-        self._init_p_forward_fn()
 
     def _init_fn(self):
         input_shape = (1, 1)
@@ -104,19 +129,25 @@ class Distiller:
         return self.student_model.module.init(rng, input_ids, attention_mask, return_dict=False)
 
     def _partition_student_model(self):
+        r"""
+            Function to partition the student model 
+            Snippet inspired from: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L84
+        """
         shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
         self.student_params = shard_params(freeze(self.student_params))
 
-    def _partition_optimizer_state(self):
-        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
-        self.state.params = shard_params(freeze(self.state.params))
-        self.state._optimizer.target = shard_params(freeze(self.state._optimizer.target))
-
     def _partition_teacher_model(self):
+        r"""
+            Function to partition the teacher model 
+            Snippet inspired from: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L84
+        """
         shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
         self.teacher_params = shard_params(freeze(self.teacher_params))
 
     def _init_p_forward_fn(self):
+        r"""
+            Utility function to partition the loss computations and forward functions
+        """
         self._ce_loss = self.partitioner.partition(
             self._ce_loss, in_axis_resources=(P("data"), P("data")), out_axis_resources=None
         )
