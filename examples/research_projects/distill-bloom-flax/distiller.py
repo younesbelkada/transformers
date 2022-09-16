@@ -18,10 +18,11 @@ import jax.numpy as jnp
 import wandb
 
 # from flax.training.train_state import TrainState
-import flax
-from flax import optim
+import optax
+
+from optax import EmptyState
 from flax.linen import partitioning as flax_partitioning
-from flax.core.frozen_dict import freeze
+from flax.core.frozen_dict import freeze, unfreeze
 from jax.experimental import PartitionSpec as P
 
 from t5x.partitioning import PjitPartitioner
@@ -36,6 +37,10 @@ AxisMetadata = flax_partitioning.AxisMetadata
 # copied from: https://github.com/sanchit-gandhi/seq2seq-speech/blob/cfc6d73959486f5bd71c623ddd95843d62f5a614/run_flax_speech_recognition_seq2seq.py#L338
 def to_bf16(t):
     return jax.tree_map(lambda x: x.astype(jnp.bfloat16) if x.dtype == jnp.float32 else x, t)
+
+def apply_gradient_descent(param, grad, learning_rate=0.0001):
+    new_param = param - learning_rate * grad
+    return new_param
 
 class Distiller:
     def __init__(self, params, dataset, teacher, student, student_params, teacher_params, dtype):
@@ -54,10 +59,10 @@ class Distiller:
         rng = jax.random.PRNGKey(self.params.seed)
         self.rng, self.dropout_rng = jax.random.split(rng)
 
-        logger.info("Initializing Partitionner")
+        logger.info("Initializing Partitioner")
 
         # Here we initialize the Jax partitionner to get the param specs
-        self._init_partitionner()
+        self._init_partitioner()
 
         # Step 1: partition the student model! 
         self._partition_student_model()
@@ -73,7 +78,7 @@ class Distiller:
         # Step 4: partition all the necessary forward functions
         self._init_p_forward_fn()
 
-    def _init_partitionner(self):
+    def _init_partitioner(self):
         r"""
             Utility function to initialize the partitionner. This is needed to partition the rest 
             of the attributes (model, optimizer) that are used later.
@@ -83,12 +88,13 @@ class Distiller:
         """
         num_mp_partitions = jax.device_count()
         self.partitioner = PjitPartitioner(num_mp_partitions, logical_axis_rules=logical_axis_rules_full)
+        # self.partitioner = PjitPartitioner(model_parallel_submesh=(2, 2, 1, 2), logical_axis_rules=logical_axis_rules_full)
 
         param_axes = jax.eval_shape(self._init_fn)["params_axes"]
 
         dummy_state = InferenceState(
             step=jnp.array(0),
-            params=freeze(self.student_model.params_shape_tree),
+            params=freeze(self.teacher_model.params_shape_tree),
             params_axes=freeze(param_axes),
             flax_mutables=None,
             flax_mutables_axes=param_axes,
@@ -102,19 +108,40 @@ class Distiller:
 
     def _init_optimizer(self):
         r"""
-            Initialize the optimizer by just creating it using t5x.FlaxOptimTrainState
+            Initialize the optimizer by creating a Optax optimizer
             The optimizer does not need to be partitionned if the partition function of the model has been called before 
             calling this function.
 
-            Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L179
+            Documentation at: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html 
         """
-        # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
-        optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
-        param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
-        # optimizer = optimizer_def.create(self.student_params)
-        # model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
-        model_variables = {"params": self.student_params, "params_axes": param_axes}
-        self.state = FlaxOptimTrainState.create(optimizer_def, model_variables)
+        optimizer_def = getattr(optax, self.params.optimizer_name)
+        self.tx = optimizer_def(self.params.learning_rate)
+
+        self.state = self.tx.init(self.student_params)
+
+        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
+
+        # For now shard only for adam
+        if self.params.optimizer_name == "adam":
+            sharded_mu = shard_params(self.state[0].mu)
+            sharded_nu = shard_params(self.state[0].nu)
+            self.state = (optax.ScaleByAdamState(self.state[0][0], sharded_mu, sharded_nu), EmptyState())
+
+    # def _init_optimizer(self):
+    #     r"""
+    #         Initialize the optimizer by just creating it using t5x.FlaxOptimTrainState
+    #         The optimizer does not need to be partitionned if the partition function of the model has been called before 
+    #         calling this function.
+
+    #         Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L179
+    #     """
+    #     # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
+    #     optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
+    #     param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
+
+    #     model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
+    #     self.state = FlaxOptimTrainState.create(optimizer_def, model_variables)
+
 
     def _init_fn(self):
         input_shape = (1, 1)
@@ -168,7 +195,7 @@ class Distiller:
 
     def _student_step(self, params, logits_teacher, sequence, one_hot_label):
         # STEP1: get student logits
-        logits_student = self.student_model(sequence, params=params).logits[:, -1, :]
+        logits_student = self.student_model(sequence, params=params).logits
 
         # STEP2: get ce loss
         _ce_loss = self._ce_loss(logits_student, logits_teacher)
@@ -178,7 +205,7 @@ class Distiller:
 
     def _teacher_step(self, params, sequence):
         # sequence = jnp.expand_dims(sequence, 0)
-        final_logits = self.teacher_model(sequence, params=params).logits[:, -1, :]
+        final_logits = self.teacher_model(sequence, params=params).logits
         return final_logits
 
     def _ce_loss(self, logits_student, logits_teacher):
@@ -203,7 +230,7 @@ class Distiller:
             one_hot_label = to_bf16(one_hot_label)
         probs_student = nn.softmax(logits_student, axis=-1) + 1e-8
 
-        loss = one_hot_label * (-jnp.log(probs_student))
+        loss = one_hot_label[:, 1:] * (-jnp.log(probs_student))
         return jnp.array(jnp.sum(loss))
 
     def _log_param_norm(self, grad):
@@ -215,7 +242,7 @@ class Distiller:
         logs["transformer_grad_norm"] = jnp.linalg.norm([logs["transformer_norm"]])
 
         # compute parameter norms over all layers, total encoder, total decoder and global for detailed monitoring
-        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.state.params).unfreeze()
+        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.student_params).unfreeze()
         logs["layer_param_norm"] = layer_param_norm
         logs["transformer_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm["transformer"]))
         logs["param_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm))
@@ -248,38 +275,40 @@ class Distiller:
             for batch in self.dataset:
 
                 # Loop over each token, get the predictions from the teacher + student and perform backpropagation
-                for i in range(1, self.params.max_seq_len - 1):
-                    # step 1: get the teacher loss
-                    # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
-                    logits_teacher = self.batched_teacher_step(self.teacher_params, batch[:, :i])
-                    # step2: one hot encode the next tokens
-                    one_hot_labels = one_hot(batch[:, i + 1], self.params.vocab_size)
+                # step 1: get the teacher loss
+                # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
+                logits_teacher = self.batched_teacher_step(self.teacher_params, batch[:, :self.params.max_seq_len-1])
 
-                    # step3: perform backpropagation by computing student's loss
-                    # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
-                    grad_fn = jax.value_and_grad(self._compute_loss)
-                    loss, grad = grad_fn(self.state.params, logits_teacher, batch[:, :i], one_hot_labels)
+                # step2: one hot encode the next tokens
+                one_hot_labels = one_hot(batch[:, :self.params.max_seq_len], self.params.vocab_size)
 
-                    print("Loss ={}".format(loss.item()))
+                # step3: perform backpropagation by computing student's loss
+                # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
+                grad_fn = jax.value_and_grad(self._compute_loss)
+                loss, grad = grad_fn(self.student_params, logits_teacher, batch[:, :self.params.max_seq_len-1], one_hot_labels)
 
-                    # Average the gradients and the loss
-                    grad = jax.tree_map(lambda g: g / self.params.batch_size, grad)
-                    loss = jax.tree_map(lambda l: l / self.params.batch_size, loss)
-                    # End copied lines
+                print("Loss ={}".format(loss.item()))
 
-                    # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
-                    self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
+                # Average the gradients and the loss
+                grad = jax.tree_map(lambda g: g / self.params.batch_size, grad)
+                loss = jax.tree_map(lambda l: l / self.params.batch_size, loss)
+                # End copied lines
 
-                    # step4: yey! log the results
-                    logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}
+                # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
+                # self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
+                updates, self.state = self.tx.update(grad, self.state)
+                self.student_params = optax.apply_updates(self.student_params, updates)
+                
+                # step4: yey! log the results
+                logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}
 
-                    # log param norm and grad norm
-                    # Copied from: https://github.com/sanchit-gandhi/seq2seq-speech/blob/cfc6d73959486f5bd71c623ddd95843d62f5a614/run_flax_speech_recognition_seq2seq.py#L638
-                    # compute gradient norms over all layers, total encoder, total decoder and global for detailed monitoring
-                    norm_logs = self._log_param_norm(grad)
-                    logs.update(norm_logs)
-                    self._log_metrics(logs, step)
+                # log param norm and grad norm
+                # Copied from: https://github.com/sanchit-gandhi/seq2seq-speech/blob/cfc6d73959486f5bd71c623ddd95843d62f5a614/run_flax_speech_recognition_seq2seq.py#L638
+                # compute gradient norms over all layers, total encoder, total decoder and global for detailed monitoring
+                norm_logs = self._log_param_norm(grad)
+                logs.update(norm_logs)
+                self._log_metrics(logs, step)
 
-                    step += 1
+                step += 1
 
-                break
+                # break

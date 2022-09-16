@@ -23,7 +23,7 @@ class Hparams:
     root_dir: str = os.getcwd()
 
     # teacher / student params
-    teacher_path: str = "bigscience/bloom-1b3"
+    teacher_path: str = "bigscience/bloom-1b7"
     student_path: str = "bigscience/distill-bloom-1b3"
     dtype: str = "bfloat16"
 
@@ -33,7 +33,7 @@ class Hparams:
     num_workers: int = 0
     path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
     ext: str = ".bin"
-    max_seq_len: int = 512
+    max_seq_len: int = 16
     vocab_size: int = 250880
 
     # Learning params
