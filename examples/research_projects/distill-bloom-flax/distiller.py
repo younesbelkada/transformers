@@ -261,6 +261,7 @@ class Distiller:
 
             wandb.log(log_metrics, step)
 
+
     def train(self):
         wandb.init(
             project=self.params.wandb_project,
@@ -270,11 +271,10 @@ class Distiller:
         )
 
         step = 0
-
         for epoch in range(self.params.epochs):
             for batch in self.dataset:
-
-                # Loop over each token, get the predictions from the teacher + student and perform backpropagation
+                # Get the predictions from the teacher + student and perform backpropagation
+                
                 # step 1: get the teacher loss
                 # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
                 logits_teacher = self.batched_teacher_step(self.teacher_params, batch[:, :self.params.max_seq_len-1])
@@ -296,6 +296,8 @@ class Distiller:
 
                 # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
                 # self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
+
+                # Inspired from: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html
                 updates, self.state = self.tx.update(grad, self.state)
                 self.student_params = optax.apply_updates(self.student_params, updates)
                 
@@ -311,4 +313,6 @@ class Distiller:
 
                 step += 1
 
-                # break
+
+                #break
+            break
