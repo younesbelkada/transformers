@@ -29,11 +29,14 @@ class Hparams:
 
     # Dataset params
     epochs: int = 1
-    batch_size: int = 2
+    batch_size: int = 64
+    use_gradient_accumulation: bool = True
+    micro_batch_size: int = 4
     num_workers: int = 0
-    path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
+    # path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
+    path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/bigscience-data/roots_fr_uncorpus/"
     ext: str = ".bin"
-    max_seq_len: int = 16
+    max_seq_len: int = 128
     vocab_size: int = 250880
 
     # Learning params
@@ -42,6 +45,9 @@ class Hparams:
     # optimizer params
     optimizer_name: str = "adam"
     step_size: int = 1
+
+    # eval params
+    eval_steps: int = 100
 
 
 @dataclass

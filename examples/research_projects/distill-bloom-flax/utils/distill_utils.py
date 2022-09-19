@@ -33,6 +33,24 @@ def lm_loss(logits_student, one_hot_label):
 
 
 # 2D parameter and activation partitioning
+# logical_axis_rules_full = [
+#     ("batch", "data"),
+#     ("mlp", "model"),
+#     ("heads", "model"),
+#     ("vocab", "model"),
+#     # shard both activations and weight matrices on the remaining available axis
+#     ("embed", "model"),
+#     ("embed", "data"),
+#     ("kv", None),
+#     ("joined_kv", None),
+#     ("relpos_buckets", None),
+#     ("abspos_buckets", None),
+#     ("length", None),
+#     ("layers", None),
+#     ("stack", None),
+#     ("mlp_activations", None),
+# ]
+
 logical_axis_rules_full = [
     ("batch", "data"),
     ("mlp", "model"),

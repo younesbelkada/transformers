@@ -99,17 +99,30 @@ class FlaxBloomAttention(nn.Module):
                 f"`num_heads`: {self.num_heads})."
             )
 
+        # self.query_key_value = layers.DenseGeneral(
+        #     axis=-1,
+        #     features=(self.num_heads, self.head_dim * 3),
+        #     kernel_axes=('embed', 'heads', 'kv'),
+        #     dtype=self.dtype,
+        #     params_dtype=self.params_dtype,
+        # )
+        # self.dense = layers.DenseGeneral(
+        #     features=self.hidden_size,
+        #     axis=(-2, -1),
+        #     kernel_axes=('heads', 'kv', 'embed'),
+        #     dtype=self.dtype,
+        #     params_dtype=self.params_dtype,
+        # )
+
         self.query_key_value = layers.DenseGeneral(
-            axis=-1,
-            features=(self.num_heads, self.head_dim * 3),
-            kernel_axes=('embed', 'heads', 'kv'),
+            features=self.hidden_size * 3,
+            kernel_axes=('embed', 'kv'),
             dtype=self.dtype,
             params_dtype=self.params_dtype,
         )
         self.dense = layers.DenseGeneral(
             features=self.hidden_size,
-            axis=(-2, -1),
-            kernel_axes=('heads', 'kv', 'embed'),
+            kernel_axes=('kv', 'embed'),
             dtype=self.dtype,
             params_dtype=self.params_dtype,
         )
@@ -179,6 +192,12 @@ class FlaxBloomAttention(nn.Module):
             )
             attention_mask = combine_masks(pad_mask, attention_mask)
         return key, value, attention_mask
+    
+    def _split_heads(self, hidden_states):
+        return hidden_states.reshape(hidden_states.shape[:-1] + (self.num_heads, self.head_dim * 3))
+    
+    def _merge_heads(self, hidden_states):
+        return hidden_states.reshape(hidden_states.shape[:2] + (self.hidden_size,))
 
     def __call__(
         self,
@@ -195,11 +214,18 @@ class FlaxBloomAttention(nn.Module):
 
         # proj q, k, v
         fused_qkv = self.query_key_value(hidden_states)
+        fused_qkv = self._split_heads(fused_qkv)
         query, key, value = jnp.split(fused_qkv, 3, axis=-1)
+
+        # query = with_sharding_constraint(query, ('batch', 'length', 'kv'))
+        # key = with_sharding_constraint(key, ('batch', 'length',  'kv'))
+        # value = with_sharding_constraint(value, ('batch', 'length', 'kv'))
         
         query = with_sharding_constraint(query, ('batch', 'length', 'heads', 'kv'))
         key = with_sharding_constraint(key, ('batch', 'length', 'heads', 'kv'))
         value = with_sharding_constraint(value, ('batch', 'length', 'heads', 'kv'))
+
+        
 
         causal_attention_mask = make_causal_mask(attention_mask, dtype="bool")
 
@@ -261,6 +287,7 @@ class FlaxBloomAttention(nn.Module):
         )
 
         attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, value)
+        attn_output = self._merge_heads(attn_output)
         attn_output = self.dense(attn_output)
 
         outputs = (attn_output, attn_weights) if output_attentions else (attn_output,)
@@ -689,7 +716,8 @@ class FlaxBloomForCausalLMModule(nn.Module):
         self.transformer = FlaxBloomModule(self.config, dtype=self.dtype, params_dtype=self.params_dtype, use_scan=self.use_scan)
         self.lm_head = layers.DenseGeneral(
             self.config.vocab_size,
-            dtype=jnp.float32,  # Use float32 for stabiliity.
+            # dtype=jnp.float32,  # Use float32 for stabiliity.
+            dtype=self.dtype,
             params_dtype=self.params_dtype,
             use_bias=False,
             kernel_axes=('embed', 'vocab'),

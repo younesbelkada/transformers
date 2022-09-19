@@ -45,6 +45,10 @@ class AutoRegressiveDataset(data.Dataset):
         self.current_file_index = 0
         bin_file = open(os.path.join(self.path_bin_files, self.list_bin_files[self.current_file_index]), "rb")
         self.current_data = pickle.load(bin_file)
+
+        self.bin_batch_size = 64 # TODO add it in params
+
+        print()
         # Load the bin data + iterate to the next one => load dynamically the bin files
 
     def _update_current_file(self):
@@ -55,14 +59,14 @@ class AutoRegressiveDataset(data.Dataset):
         self.current_data = pickle.load(bin_file)
 
     def __len__(self):
-        return len(self.list_bin_files * 2048)
+        return len(self.list_bin_files * self.bin_batch_size)
 
     def __getitem__(self, idx):
         try:
-            data = self.current_data[idx]
+            data = self.current_data[idx - (self.bin_batch_size * self.current_file_index)]
         except:
             self._update_current_file()
-            data = self.current_data[idx]
+            data = self.current_data[idx - (self.bin_batch_size * self.current_file_index)]
         return data
 
 

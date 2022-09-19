@@ -38,6 +38,9 @@ AxisMetadata = flax_partitioning.AxisMetadata
 def to_bf16(t):
     return jax.tree_map(lambda x: x.astype(jnp.bfloat16) if x.dtype == jnp.float32 else x, t)
 
+def to_fp16(t):
+    return jax.tree_map(lambda x: x.astype(jnp.float16) if x.dtype == jnp.float32 else x, t)
+
 def apply_gradient_descent(param, grad, learning_rate=0.0001):
     new_param = param - learning_rate * grad
     return new_param
@@ -62,7 +65,7 @@ class Distiller:
         logger.info("Initializing Partitioner")
 
         # Here we initialize the Jax partitionner to get the param specs
-        self._init_partitioner()
+        self._init_student_partitioner()
 
         # Step 1: partition the student model! 
         self._partition_student_model()
@@ -72,13 +75,16 @@ class Distiller:
         # model is partitioned
         self._init_optimizer()
 
+        # Here we initialize the Jax partitionner to get the param specs - this time with the teacher params
+        self._init_teacher_partitioner()
+
         # Step 3: partition the student model
         self._partition_teacher_model()
 
         # Step 4: partition all the necessary forward functions
         self._init_p_forward_fn()
 
-    def _init_partitioner(self):
+    def _init_student_partitioner(self):
         r"""
             Utility function to initialize the partitionner. This is needed to partition the rest 
             of the attributes (model, optimizer) that are used later.
@@ -87,10 +93,38 @@ class Distiller:
             Function inspired from the snippet: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L67-L82 
         """
         num_mp_partitions = jax.device_count()
-        self.partitioner = PjitPartitioner(num_mp_partitions, logical_axis_rules=logical_axis_rules_full)
+        self.student_partitioner = PjitPartitioner(num_mp_partitions, logical_axis_rules=logical_axis_rules_full)
         # self.partitioner = PjitPartitioner(model_parallel_submesh=(2, 2, 1, 2), logical_axis_rules=logical_axis_rules_full)
 
-        param_axes = jax.eval_shape(self._init_fn)["params_axes"]
+        param_axes = jax.eval_shape(self._student_init)["params_axes"]
+
+        dummy_state = InferenceState(
+            step=jnp.array(0),
+            params=freeze(self.student_model.params_shape_tree),
+            params_axes=freeze(param_axes),
+            flax_mutables=None,
+            flax_mutables_axes=param_axes,
+        )
+
+        mesh_axes = self.student_partitioner.get_mesh_axes(dummy_state)
+        self.student_params_spec = mesh_axes.params
+
+        # Delete the intermediate variable
+        dummy_state = None
+    
+    def _init_teacher_partitioner(self):
+        r"""
+            Utility function to initialize the partitionner. This is needed to partition the rest 
+            of the attributes (model, optimizer) that are used later.
+
+            A dummy state needs to be created to get the mesh_axes object.
+            Function inspired from the snippet: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L67-L82 
+        """
+        num_mp_partitions = jax.device_count()
+        self.teacher_partitioner = PjitPartitioner(num_mp_partitions, logical_axis_rules=logical_axis_rules_full)
+        # self.partitioner = PjitPartitioner(model_parallel_submesh=(2, 2, 1, 2), logical_axis_rules=logical_axis_rules_full)
+
+        param_axes = jax.eval_shape(self._teacher_init)["params_axes"]
 
         dummy_state = InferenceState(
             step=jnp.array(0),
@@ -100,8 +134,8 @@ class Distiller:
             flax_mutables_axes=param_axes,
         )
 
-        mesh_axes = self.partitioner.get_mesh_axes(dummy_state)
-        self.params_spec = mesh_axes.params
+        mesh_axes = self.teacher_partitioner.get_mesh_axes(dummy_state)
+        self.teacher_params_spec = mesh_axes.params
 
         # Delete the intermediate variable
         dummy_state = None
@@ -119,7 +153,7 @@ class Distiller:
 
         self.state = self.tx.init(self.student_params)
 
-        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
+        shard_params = self.student_partitioner.partition(lambda x: x, (self.student_params_spec,), self.student_params_spec)
 
         # For now shard only for adam
         if self.params.optimizer_name == "adam":
@@ -127,35 +161,27 @@ class Distiller:
             sharded_nu = shard_params(self.state[0].nu)
             self.state = (optax.ScaleByAdamState(self.state[0][0], sharded_mu, sharded_nu), EmptyState())
 
-    # def _init_optimizer(self):
-    #     r"""
-    #         Initialize the optimizer by just creating it using t5x.FlaxOptimTrainState
-    #         The optimizer does not need to be partitionned if the partition function of the model has been called before 
-    #         calling this function.
 
-    #         Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L179
-    #     """
-    #     # tx = getattr(optax, self.params.optimizer_name)(self.params.learning_rate)
-    #     optimizer_def = optim.GradientDescent(learning_rate=self.params.learning_rate)
-    #     param_axes = jax.tree_map(lambda x: AxisMetadata(tuple(x)), self.params_spec)
-
-    #     model_variables = flax.core.freeze({"params": self.student_params, "params_axes": param_axes})
-    #     self.state = FlaxOptimTrainState.create(optimizer_def, model_variables)
-
-
-    def _init_fn(self):
+    def _student_init(self):
         input_shape = (1, 1)
         input_ids = jnp.zeros(input_shape, dtype="i4")
         attention_mask = jnp.ones_like(input_ids)
         rng = jax.random.PRNGKey(0)
         return self.student_model.module.init(rng, input_ids, attention_mask, return_dict=False)
+    
+    def _teacher_init(self):
+        input_shape = (1, 1)
+        input_ids = jnp.zeros(input_shape, dtype="i4")
+        attention_mask = jnp.ones_like(input_ids)
+        rng = jax.random.PRNGKey(0)
+        return self.teacher_model.module.init(rng, input_ids, attention_mask, return_dict=False)
 
     def _partition_student_model(self):
         r"""
             Function to partition the student model 
             Snippet inspired from: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L84
         """
-        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
+        shard_params = self.student_partitioner.partition(lambda x: x, (self.student_params_spec,), self.student_params_spec)
         self.student_params = shard_params(freeze(self.student_params))
 
     def _partition_teacher_model(self):
@@ -163,30 +189,30 @@ class Distiller:
             Function to partition the teacher model 
             Snippet inspired from: https://github.com/huggingface/bloom-jax-inference/blob/2a04aa519d262729d54adef3d19d63879f81ea89/sharding_example.py#L84
         """
-        shard_params = self.partitioner.partition(lambda x: x, (self.params_spec,), self.params_spec)
+        shard_params = self.teacher_partitioner.partition(lambda x: x, (self.teacher_params_spec,), self.teacher_params_spec)
         self.teacher_params = shard_params(freeze(self.teacher_params))
 
     def _init_p_forward_fn(self):
         r"""
             Utility function to partition the loss computations and forward functions
         """
-        self._ce_loss = self.partitioner.partition(
+        self._ce_loss = self.student_partitioner.partition(
             self._ce_loss, in_axis_resources=(P("data"), P("data")), out_axis_resources=None
         )
         # out axis has to be None since the output is a scalar
 
-        self._lm_loss = self.partitioner.partition(
+        self._lm_loss = self.student_partitioner.partition(
             self._lm_loss, in_axis_resources=(P("data"), P("data")), out_axis_resources=None
         )
         # out axis has to be None since the output is a scalar
 
-        self.batched_student_step = self.partitioner.partition(
+        self.batched_student_step = self.student_partitioner.partition(
             self._student_step,
-            in_axis_resources=(self.params_spec, P("data"), P("data"), P("data")),
+            in_axis_resources=(self.student_params_spec, P("data"), P("data"), P("data")),
             out_axis_resources=None,
         )
-        self.batched_teacher_step = self.partitioner.partition(
-            self._teacher_step, in_axis_resources=(self.params_spec, P("data")), out_axis_resources=P("data")
+        self.batched_teacher_step = self.teacher_partitioner.partition(
+            self._teacher_step, in_axis_resources=(self.teacher_params_spec, P("data")), out_axis_resources=P("data")
         )
 
     def _compute_loss(self, params, logits_teacher, batch, one_hot_labels):
@@ -212,40 +238,40 @@ class Distiller:
         """
         Distillation loss as defined in Distill-BERT https://arxiv.org/pdf/1910.01108.pdf
         """
-        if self.dtype != jnp.float32:
+        if self.params.dtype == "bfloat16":
             logits_student = to_bf16(logits_student)
             logits_teacher = to_bf16(logits_teacher)
-        probs_teacher = nn.softmax(logits_teacher, axis=-1) + 1e-8
-        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8
+
+        probs_teacher = nn.softmax(logits_teacher, axis=-1) + 1e-8 # For numerical stability 
+        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8 # For numerical stability 
 
         loss = probs_teacher * (-jnp.log(probs_student))
-        return jnp.array(jnp.sum(loss))
+        return jnp.array(jnp.sum(loss)) / self.params.max_seq_len
+        # return jnp.array(jnp.mean(loss)) * 10
 
     def _lm_loss(self, logits_student, one_hot_label):
         """
         Distillation loss as defined in Distill-BERT https://arxiv.org/pdf/1910.01108.pdf
         """
-        if self.dtype != jnp.float32:
+        if self.params.dtype == "bfloat16":
             logits_student = to_bf16(logits_student)
-            one_hot_label = to_bf16(one_hot_label)
-        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8
+
+        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8 # For numerical stability 
 
         loss = one_hot_label[:, 1:] * (-jnp.log(probs_student))
-        return jnp.array(jnp.sum(loss))
+        return jnp.array(jnp.sum(loss)) / self.params.max_seq_len
 
     def _log_param_norm(self, grad):
         layer_grad_norm = jax.tree_map(jnp.linalg.norm, grad).unfreeze()
+        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.student_params).unfreeze()
+
         logs = {
             "layer_grad_norm": layer_grad_norm,
-            "transformer_norm": jnp.linalg.norm(jax.tree_util.tree_leaves(layer_grad_norm["transformer"])),
+            "layer_param_norm": layer_param_norm,
         }
-        logs["transformer_grad_norm"] = jnp.linalg.norm([logs["transformer_norm"]])
+        layer_param_norm = None
+        layer_grad_norm = None
 
-        # compute parameter norms over all layers, total encoder, total decoder and global for detailed monitoring
-        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.student_params).unfreeze()
-        logs["layer_param_norm"] = layer_param_norm
-        logs["transformer_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm["transformer"]))
-        logs["param_norm"] = jnp.linalg.norm(jax.tree_util.tree_leaves(layer_param_norm))
         return logs
 
     def _log_metrics(self, metrics, step, prefix=None):
@@ -260,6 +286,9 @@ class Distiller:
                     log_metrics[k] = v
 
             wandb.log(log_metrics, step)
+    
+    def _eval_step(self):
+        pass
 
 
     def train(self):
@@ -271,38 +300,62 @@ class Distiller:
         )
 
         step = 0
+        seen_tokens = 0
+        grad_fn = jax.value_and_grad(self._compute_loss)
+
         for epoch in range(self.params.epochs):
-            for batch in self.dataset:
+            for i, batch in enumerate(self.dataset):
                 # Get the predictions from the teacher + student and perform backpropagation
-                
-                # step 1: get the teacher loss
-                # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
-                logits_teacher = self.batched_teacher_step(self.teacher_params, batch[:, :self.params.max_seq_len-1])
+                if self.params.use_gradient_accumulation:
+                    grad = jax.tree_map(jnp.zeros_like, self.student_params)
+                    loss = jnp.array([0])
 
-                # step2: one hot encode the next tokens
-                one_hot_labels = one_hot(batch[:, :self.params.max_seq_len], self.params.vocab_size)
+                    for j in range(0, self.params.batch_size-self.params.micro_batch_size, self.params.micro_batch_size):
+                        micro_batch = batch[j:(j+self.params.micro_batch_size)]
+                        # step 1: get the teacher loss
+                        logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
 
-                # step3: perform backpropagation by computing student's loss
-                # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
-                grad_fn = jax.value_and_grad(self._compute_loss)
-                loss, grad = grad_fn(self.student_params, logits_teacher, batch[:, :self.params.max_seq_len-1], one_hot_labels)
+                        # step2: one hot encode the next tokens
+                        one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
 
-                print("Loss ={}".format(loss.item()))
+                        # get loss and gradients
+                        interm_loss, micro_grad = grad_fn(self.student_params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
+
+                        # average accross batch size
+                        grad = jax.tree_map(lambda x, y : x+y, grad, micro_grad)
+                        loss += interm_loss
+
+                        logits_teacher = None
+                else:
+                    # step 1: get the teacher loss
+                    # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
+                    logits_teacher = self.batched_teacher_step(self.teacher_params, batch[:, :self.params.max_seq_len-1])
+
+                    # step2: one hot encode the next tokens
+                    one_hot_labels = one_hot(batch[:, :self.params.max_seq_len], self.params.vocab_size)
+
+                    # step3: perform backpropagation by computing student's loss
+                    # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
+                    grad_fn = jax.value_and_grad(self._compute_loss)
+                    loss, grad = grad_fn(self.student_params, logits_teacher, batch[:, :self.params.max_seq_len-1], one_hot_labels)
 
                 # Average the gradients and the loss
                 grad = jax.tree_map(lambda g: g / self.params.batch_size, grad)
                 loss = jax.tree_map(lambda l: l / self.params.batch_size, loss)
                 # End copied lines
 
-                # Inspired from: https://github.com/google-research/t5x/blob/29a14ae2d77e74800f7f66645b333d9faf83ae61/t5x/train_state_test.py#L226
-                # self.state = self.state.apply_gradient(grads=grad, learning_rate=self.params.learning_rate)
+                print("Loss ={}".format(loss.item()))
 
                 # Inspired from: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html
                 updates, self.state = self.tx.update(grad, self.state)
                 self.student_params = optax.apply_updates(self.student_params, updates)
-                
+                self._partition_student_model()
+
+                # Update number of seen tokens
+                seen_tokens += (batch.shape[0] * batch.shape[1])
+
                 # step4: yey! log the results
-                logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate}
+                logs = {"loss": loss.item(), "learning_rate": self.params.learning_rate, "seen_tokens":seen_tokens}
 
                 # log param norm and grad norm
                 # Copied from: https://github.com/sanchit-gandhi/seq2seq-speech/blob/cfc6d73959486f5bd71c623ddd95843d62f5a614/run_flax_speech_recognition_seq2seq.py#L638
@@ -311,8 +364,14 @@ class Distiller:
                 logs.update(norm_logs)
                 self._log_metrics(logs, step)
 
+                logs = None
+                norm_logs = None
+                grad = None
+                updates = None
+
                 step += 1
 
-
+                if i % self.params.eval_steps == 0:
+                    self._eval_step()
                 #break
             break
