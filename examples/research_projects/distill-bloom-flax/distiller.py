@@ -15,6 +15,7 @@
 import jax
 import jax.nn as nn
 import jax.numpy as jnp
+import numpy as np
 import wandb
 
 # from flax.training.train_state import TrainState
@@ -24,6 +25,9 @@ from optax import EmptyState
 from flax.linen import partitioning as flax_partitioning
 from flax.core.frozen_dict import freeze, unfreeze
 from jax.experimental import PartitionSpec as P
+
+from jax.experimental.pjit import pjit, with_sharding_constraint
+from jax.experimental import maps, PartitionSpec
 
 from t5x.partitioning import PjitPartitioner
 from t5x.train_state import FlaxOptimTrainState, InferenceState
@@ -95,6 +99,12 @@ class Distiller:
         num_mp_partitions = jax.device_count()
         self.student_partitioner = PjitPartitioner(num_mp_partitions, logical_axis_rules=logical_axis_rules_full)
         # self.partitioner = PjitPartitioner(model_parallel_submesh=(2, 2, 1, 2), logical_axis_rules=logical_axis_rules_full)
+        
+        # Get the mesh -> this will define how the TPU HBMs would be partitioned
+        # Divide the MP partitioning by 2
+        mesh_shape = (self.params.dp_devices, int(self.params.mp_devices/2))
+        devices = np.array(jax.devices()[:4]).reshape(*mesh_shape)
+        self.student_partitioner.mesh = maps.Mesh(devices, ("dp", "mp"))
 
         param_axes = jax.eval_shape(self._student_init)["params_axes"]
 
@@ -110,7 +120,7 @@ class Distiller:
         self.student_params_spec = mesh_axes.params
 
         # Delete the intermediate variable
-        dummy_state = None
+        del dummy_state, devices
     
     def _init_teacher_partitioner(self):
         r"""
@@ -126,6 +136,12 @@ class Distiller:
 
         param_axes = jax.eval_shape(self._teacher_init)["params_axes"]
 
+        # Get the mesh -> this will define how the TPU HBMs would be partitioned
+        # Divide the MP partitioning by 2
+        mesh_shape = (self.params.dp_devices, int(self.params.mp_devices/2))
+        devices = np.array(jax.devices()[4:]).reshape(*mesh_shape)
+        self.teacher_partitioner.mesh = maps.Mesh(devices, ("dp", "mp"))
+
         dummy_state = InferenceState(
             step=jnp.array(0),
             params=freeze(self.teacher_model.params_shape_tree),
@@ -138,7 +154,7 @@ class Distiller:
         self.teacher_params_spec = mesh_axes.params
 
         # Delete the intermediate variable
-        dummy_state = None
+        del dummy_state, devices
 
     def _init_optimizer(self):
         r"""
@@ -197,37 +213,53 @@ class Distiller:
             Utility function to partition the loss computations and forward functions
         """
         self._ce_loss = self.student_partitioner.partition(
-            self._ce_loss, in_axis_resources=(P("data"), P("data")), out_axis_resources=None
+            self._ce_loss, in_axis_resources=(P("dp"), P("dp")), out_axis_resources=None
         )
         # out axis has to be None since the output is a scalar
 
         self._lm_loss = self.student_partitioner.partition(
-            self._lm_loss, in_axis_resources=(P("data"), P("data")), out_axis_resources=None
+            self._lm_loss, in_axis_resources=(P("dp"), P("dp")), out_axis_resources=None
         )
         # out axis has to be None since the output is a scalar
 
         self.batched_student_step = self.student_partitioner.partition(
             self._student_step,
-            in_axis_resources=(self.student_params_spec, P("data"), P("data"), P("data")),
-            out_axis_resources=None,
+            in_axis_resources=(self.student_params_spec, P("dp")),
+            out_axis_resources=P("dp"),
         )
         self.batched_teacher_step = self.teacher_partitioner.partition(
-            self._teacher_step, in_axis_resources=(self.teacher_params_spec, P("data")), out_axis_resources=P("data")
+            self._teacher_step, in_axis_resources=(self.teacher_params_spec, P("dp")), out_axis_resources=P("dp")
         )
 
     def _compute_loss(self, params, logits_teacher, batch, one_hot_labels):
-        loss = self.batched_student_step(params, logits_teacher, batch, one_hot_labels)
-        return jnp.mean(loss)
+        logits_student = self.batched_student_step(params, batch)
+        return self._loss_fn(logits_student, logits_teacher, one_hot_labels)
+    
+    def _loss_fn(self, logits_student, logits_teacher, one_hot_labels):
+        if self.params.dtype == "bfloat16":
+            logits_student = to_bf16(logits_student)
+            logits_teacher = to_bf16(logits_teacher)
 
-    def _student_step(self, params, logits_teacher, sequence, one_hot_label):
+        probs_teacher = nn.softmax(logits_teacher, axis=-1) + 1e-8 # For numerical stability 
+        probs_student = nn.softmax(logits_student, axis=-1) + 1e-8 # For numerical stability 
+
+        ce_loss = probs_teacher * (-jnp.log(probs_student))
+        lm_loss = one_hot_labels[:, 1:] * (-jnp.log(probs_student))
+
+        return (ce_loss+lm_loss).mean()
+
+    def _student_step(self, params, sequence):
         # STEP1: get student logits
         logits_student = self.student_model(sequence, params=params).logits
 
         # STEP2: get ce loss
-        _ce_loss = self._ce_loss(logits_student, logits_teacher)
-        _lm_loss = self._lm_loss(logits_student, one_hot_label)
+        # _ce_loss = self._ce_loss(logits_student, logits_teacher)
+        # _lm_loss = self._lm_loss(logits_student, one_hot_label)
 
-        return jnp.array(_ce_loss + _lm_loss)
+        # return jnp.array(_ce_loss + _lm_loss)
+        return logits_student
+
+    
 
     def _teacher_step(self, params, sequence):
         # sequence = jnp.expand_dims(sequence, 0)
@@ -290,6 +322,9 @@ class Distiller:
     def _eval_step(self):
         pass
 
+    def _one_hot(self, x, dtype=jnp.int8):
+        """Create a one-hot encoding of x of size k."""
+        return jnp.array(x[:, None] == jnp.arange(self.params.vocab_size), dtype)
 
     def train(self):
         wandb.init(
@@ -303,36 +338,51 @@ class Distiller:
         seen_tokens = 0
         grad_fn = jax.value_and_grad(self._compute_loss)
 
+        batch_spec = PartitionSpec("dp")
+        grad_batch_spec = PartitionSpec(None, "dp")
+
         for epoch in range(self.params.epochs):
             for i, batch in enumerate(self.dataset):
                 # Get the predictions from the teacher + student and perform backpropagation
                 if self.params.use_gradient_accumulation:
                     grad = jax.tree_map(jnp.zeros_like, self.student_params)
+                    # grad = with_sharding_constraint(grad, self.student_params_spec)
+
                     loss = jnp.array([0])
 
                     for j in range(0, self.params.batch_size-self.params.micro_batch_size, self.params.micro_batch_size):
                         micro_batch = batch[j:(j+self.params.micro_batch_size)]
+                        # micro_batch = with_sharding_constraint(micro_batch, batch_spec)
+
                         # step 1: get the teacher loss
                         logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
+                        # logits_teacher = jax.vmap(
+                        #     self.batched_teacher_step, in_axes=(None, 0),
+                        # )(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
 
                         # step2: one hot encode the next tokens
-                        one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
+                        # one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
+                        one_hot_labels = jax.pmap(self._one_hot, in_axes=(0))(micro_batch[:, :self.params.max_seq_len])
 
                         # get loss and gradients
                         interm_loss, micro_grad = grad_fn(self.student_params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
 
                         # average accross batch size
+                        # micro_grad = with_sharding_constraint(micro_grad, self.student_params_spec)
+
                         grad = jax.tree_map(lambda x, y : x+y, grad, micro_grad)
                         loss += interm_loss
 
-                        logits_teacher = None
+                        del logits_teacher, one_hot_labels
                 else:
                     # step 1: get the teacher loss
                     # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
                     logits_teacher = self.batched_teacher_step(self.teacher_params, batch[:, :self.params.max_seq_len-1])
 
                     # step2: one hot encode the next tokens
-                    one_hot_labels = one_hot(batch[:, :self.params.max_seq_len], self.params.vocab_size)
+                    # one_hot_labels = one_hot(batch[:, :self.params.max_seq_len], self.params.vocab_size)
+                    one_hot_labels = jax.pmap(self._one_hot, in_axes=(0))(micro_batch[:, :self.params.max_seq_len])
+
 
                     # step3: perform backpropagation by computing student's loss
                     # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
@@ -364,10 +414,7 @@ class Distiller:
                 logs.update(norm_logs)
                 self._log_metrics(logs, step)
 
-                logs = None
-                norm_logs = None
-                grad = None
-                updates = None
+                del logs, norm_logs, grad, updates
 
                 step += 1
 

@@ -84,8 +84,8 @@ def build_alibi_tensor_flax(attention_mask, n_head, dtype):
 
 class FlaxBloomAttention(nn.Module):
     config: BloomConfig
-    dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    params_dtype: jnp.dtype = jnp.bfloat16
 
     def setup(self):
         self.hidden_size = self.config.hidden_size
@@ -296,7 +296,7 @@ class FlaxBloomAttention(nn.Module):
 
 class BloomGELU(nn.Module):
     def setup(self):
-        self.dtype = jnp.float32
+        self.dtype = jnp.bfloat16
 
     def __call__(self, x):
         return x * 0.5 * (1.0 + tanh(0.79788456 * x * (1 + 0.044715 * x * x)))
@@ -304,8 +304,8 @@ class BloomGELU(nn.Module):
 
 class FlaxBloomMLP(nn.Module):
     config: BloomConfig
-    dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    params_dtype: jnp.dtype = jnp.bfloat16
 
     def setup(self):
         self.hidden_size = self.config.hidden_size
@@ -352,8 +352,8 @@ class FlaxBloomMLP(nn.Module):
 
 class FlaxBloomBlock(nn.Module):
     config: BloomConfig
-    dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    params_dtype: jnp.dtype = jnp.bfloat16
     use_scan: bool = False
 
     def setup(self):
@@ -448,8 +448,8 @@ class FlaxBloomPreTrainedModel(FlaxPreTrainedModel):
         config: BloomConfig,
         input_shape: Tuple = (1, 1),
         seed: int = 0,
-        dtype: jnp.dtype = jnp.float32,
-        params_dtype: jnp.dtype = jnp.float32,
+        dtype: jnp.dtype = jnp.bfloat16,
+        params_dtype: jnp.dtype = jnp.bfloat16,
         _do_init: bool = True,
         use_scan: bool = False,
         **kwargs,
@@ -558,8 +558,8 @@ class FlaxBloomPreTrainedModel(FlaxPreTrainedModel):
 
 class FlaxBloomBlockCollection(nn.Module):
     config: BloomConfig
-    dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    params_dtype: jnp.dtype = jnp.bfloat16
     use_scan: bool = False
 
     # TODO (SG): re-write as a `setup` to conform to Transformers JAX/Flax conventions -> awaiting CG response on G Chat
@@ -627,8 +627,8 @@ class FlaxBloomBlockCollection(nn.Module):
 
 class FlaxBloomModule(nn.Module):
     config: BloomConfig
-    dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    params_dtype: jnp.dtype = jnp.bfloat16
     use_scan: bool = False
 
     def setup(self):
@@ -708,15 +708,15 @@ class FlaxBloomModel(FlaxBloomPreTrainedModel):
 
 class FlaxBloomForCausalLMModule(nn.Module):
     config: BloomConfig
-    dtype: jnp.dtype = jnp.float32
-    params_dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    params_dtype: jnp.dtype = jnp.bfloat16
     use_scan: bool = False
 
     def setup(self):
         self.transformer = FlaxBloomModule(self.config, dtype=self.dtype, params_dtype=self.params_dtype, use_scan=self.use_scan)
         self.lm_head = layers.DenseGeneral(
             self.config.vocab_size,
-            # dtype=jnp.float32,  # Use float32 for stabiliity.
+            # dtype=jnp.bfloat16,  # Use float32 for stabiliity.
             dtype=self.dtype,
             params_dtype=self.params_dtype,
             use_bias=False,

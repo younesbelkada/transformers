@@ -6,6 +6,7 @@ import jax.numpy as jnp
 
 def one_hot(batch_x, k, dtype=jnp.float32):
     """Create a one-hot encoding of x of size k."""
+    # return jnp.array([x[:, None] == jnp.arange(k) for x in batch_x], dtype)
     return jnp.array([x[:, None] == jnp.arange(k) for x in batch_x], dtype)
 
 
@@ -34,13 +35,13 @@ def lm_loss(logits_student, one_hot_label):
 
 # 2D parameter and activation partitioning
 # logical_axis_rules_full = [
-#     ("batch", "data"),
-#     ("mlp", "model"),
-#     ("heads", "model"),
-#     ("vocab", "model"),
+#     ("batch", "dp"),
+#     ("mlp", "mp"),
+#     ("heads", "mp"),
+#     ("vocab", "mp"),
 #     # shard both activations and weight matrices on the remaining available axis
-#     ("embed", "model"),
-#     ("embed", "data"),
+#     ("embed", "mp"),
+#     ("embed", "dp"),
 #     ("kv", None),
 #     ("joined_kv", None),
 #     ("relpos_buckets", None),
@@ -52,13 +53,12 @@ def lm_loss(logits_student, one_hot_label):
 # ]
 
 logical_axis_rules_full = [
-    ("batch", "data"),
-    ("mlp", "model"),
-    ("heads", "model"),
-    ("vocab", "model"),
+    ("batch", "dp"),
+    ("mlp", "mp"),
+    ("heads", "mp"),
+    ("vocab", "mp"),
     # shard both activations and weight matrices on the remaining available axis
-    ("embed", "model"),
-    ("embed", "data"),
+    ("embed", "mp"),
     ("kv", None),
     ("joined_kv", None),
     ("relpos_buckets", None),

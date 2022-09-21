@@ -71,3 +71,36 @@ python3 scripts/binarize_data.py --nb_datasets [NB_DATASETS] --batch_size [BATCH
 
 Install the dependencies with the command `pip install -r requirements.txt`.
 
+## How the script works
+
+### Step 1: Partition student and teacher model
+
+Check the `logical_axis_rules_full` variable in `distill_utils.py` file. This should look to something like:
+```
+logical_axis_rules_full = [
+    ("batch", "dp"),
+    ("mlp", "mp"),
+    ("heads", "mp"),
+    ("vocab", "mp"),
+    # shard both activations and weight matrices on the remaining available axis
+    ("embed", "mp"),
+    ("embed", "dp"),
+    ("kv", None),
+    ("joined_kv", None),
+    ("relpos_buckets", None),
+    ("abspos_buckets", None),
+    ("length", None),
+    ("layers", None),
+    ("stack", None),
+    ("mlp_activations", None),
+]
+```
+With each element of the tuple corresponding to: 
+1- The name of the kernel axis that are defined by each `DenseGeneral` layer
+2- Where to shard this kernel axis -> `mp` stands for model parallelism (tensor parallelism) and `dp` stands for data parallelism. For example, the tuple `("embed", "mp")` means that each parameter that has the an axis name `embed` should be sharded on the `mp` axis.
+
+Specifically, we first load the model using `_do_init_=False` to get the parameters in a frozen dict.
+
+Then we have to define a `mesh` to explicitly tell how our partitioning would look like.
+
+Here since we are using a single v3-8, we use a small hack to have control on the HBM devices we use
