@@ -103,4 +103,21 @@ Specifically, we first load the model using `_do_init_=False` to get the paramet
 
 Then we have to define a `mesh` to explicitly tell how our partitioning would look like.
 
-Here since we are using a single v3-8, we use a small hack to have control on the HBM devices we use
+Here since we are using a single v3-8, we use a small hack to have control on the HBM devices we decide to manually set the mesh to our custom mesh as follows:
+
+```
+mesh_shape = (self.params.dp_devices, int(self.params.mp_devices/2))
+devices = np.array(jax.devices()[:int(jax.device_count()/2):]).reshape(*mesh_shape)
+self.student_partitioner.mesh = maps.Mesh(devices, ("dp", "mp"))
+```
+
+We assign half of the devices to the student model and the other half to the teacher model. I believe this is the hack on how you control on which devices to put the teacher/student model.
+
+#### What is mesh_axes?
+
+`mesh_axes` defines the structure of the mesh for each axis and each component for inference (params, flax_mutables, etc)
+We use the `params` attribute to get the params spec of the parameters!
+
+
+### Step 2: Partition the student optimizer
+

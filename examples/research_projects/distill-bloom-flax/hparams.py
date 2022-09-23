@@ -28,14 +28,14 @@ class Hparams:
 
     # teacher / student params
     teacher_path: str = "bigscience/bloom-1b7"
-    student_path: str = "bigscience/distill-bloom-1b3"
+    student_path: str = "bigscience/distill-bloom-1b3-10x"
     dtype: str = "bfloat16"
 
     # Dataset params
     epochs: int = 1
-    batch_size: int = 256
+    batch_size: int = 8
     use_gradient_accumulation: bool = True
-    micro_batch_size: int = 4
+    micro_batch_size: int = 2
     num_workers: int = 0
     # path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
     path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/bigscience-data/roots_fr_uncorpus/"
@@ -50,6 +50,7 @@ class Hparams:
     optimizer_name: str = "adam"
     path_optimizer_state: str = "/home/younesbelkada/disk/wandb_logs/"
     step_size: int = 1
+    optax_gradient: bool = False
 
     # eval params
     eval_steps: int = 100

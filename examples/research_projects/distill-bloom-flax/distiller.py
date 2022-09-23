@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import jax
+import jax, flax
 import jax.nn as nn
 import jax.numpy as jnp
 import numpy as np
@@ -31,9 +31,11 @@ from jax.experimental import maps, PartitionSpec
 
 from t5x.partitioning import PjitPartitioner
 from t5x.train_state import FlaxOptimTrainState, InferenceState
+import t5x.optimizers as optimizers
 
 
 from logging_utils import logger
+from optimizer import TrainState
 from utils.distill_utils import one_hot, logical_axis_rules_full
 
 AxisMetadata = flax_partitioning.AxisMetadata
@@ -103,7 +105,7 @@ class Distiller:
         # Get the mesh -> this will define how the TPU HBMs would be partitioned
         # Divide the MP partitioning by 2
         mesh_shape = (self.params.dp_devices, int(self.params.mp_devices/2))
-        devices = np.array(jax.devices()[:4]).reshape(*mesh_shape)
+        devices = np.array(jax.devices()[:int(jax.device_count()/2)]).reshape(*mesh_shape)
         self.student_partitioner.mesh = maps.Mesh(devices, ("dp", "mp"))
 
         param_axes = jax.eval_shape(self._student_init)["params_axes"]
@@ -139,7 +141,7 @@ class Distiller:
         # Get the mesh -> this will define how the TPU HBMs would be partitioned
         # Divide the MP partitioning by 2
         mesh_shape = (self.params.dp_devices, int(self.params.mp_devices/2))
-        devices = np.array(jax.devices()[4:]).reshape(*mesh_shape)
+        devices = np.array(jax.devices()[int(jax.device_count()/2):]).reshape(*mesh_shape)
         self.teacher_partitioner.mesh = maps.Mesh(devices, ("dp", "mp"))
 
         dummy_state = InferenceState(
@@ -156,6 +158,27 @@ class Distiller:
         # Delete the intermediate variable
         del dummy_state, devices
 
+    # def _init_optimizer(self):
+    #     r"""
+    #         Initialize the optimizer by creating a Optax optimizer
+    #         The optimizer does not need to be partitionned if the partition function of the model has been called before 
+    #         calling this function.
+
+    #         Documentation at: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html 
+    #     """
+    #     optimizer_def = getattr(optax, self.params.optimizer_name)
+    #     self.tx = optimizer_def(self.params.learning_rate)
+
+    #     self.state = self.tx.init(self.student_params)
+
+    #     shard_params = self.student_partitioner.partition(lambda x: x, (self.student_params_spec,), self.student_params_spec)
+
+    #     # For now shard only for adam
+    #     if self.params.optimizer_name == "adam":
+    #         sharded_mu = shard_params(self.state[0].mu)
+    #         sharded_nu = shard_params(self.state[0].nu)
+    #         self.state = (optax.ScaleByAdamState(self.state[0][0], sharded_mu, sharded_nu), EmptyState())
+
     def _init_optimizer(self):
         r"""
             Initialize the optimizer by creating a Optax optimizer
@@ -164,18 +187,24 @@ class Distiller:
 
             Documentation at: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html 
         """
-        optimizer_def = getattr(optax, self.params.optimizer_name)
-        self.tx = optimizer_def(self.params.learning_rate)
+        optimizer_def = getattr(optimizers, self.params.optimizer_name)(self.params.learning_rate)
 
-        self.state = self.tx.init(self.student_params)
 
-        shard_params = self.student_partitioner.partition(lambda x: x, (self.student_params_spec,), self.student_params_spec)
+        # Needs to define a state spec for pjit to understand
+        model_variables = flax.core.freeze({
+            "params": self.student_params,
+            "params_axes": jax.tree_map(lambda x: AxisMetadata(names=tuple(x)), self.student_params_spec)
+        })
 
-        # For now shard only for adam
-        if self.params.optimizer_name == "adam":
-            sharded_mu = shard_params(self.state[0].mu)
-            sharded_nu = shard_params(self.state[0].nu)
-            self.state = (optax.ScaleByAdamState(self.state[0][0], sharded_mu, sharded_nu), EmptyState())
+        def init_state(model_variables):
+            return FlaxOptimTrainState.create(
+                optimizer_def=optimizer_def,
+                model_variables=model_variables
+            )
+
+        self.state = init_state(model_variables)
+
+        del model_variables
 
 
     def _student_init(self):
@@ -336,6 +365,7 @@ class Distiller:
 
         step = 0
         seen_tokens = 0
+
         grad_fn = jax.value_and_grad(self._compute_loss)
 
         batch_spec = PartitionSpec("dp")
@@ -356,9 +386,6 @@ class Distiller:
 
                         # step 1: get the teacher loss
                         logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
-                        # logits_teacher = jax.vmap(
-                        #     self.batched_teacher_step, in_axes=(None, 0),
-                        # )(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
 
                         # step2: one hot encode the next tokens
                         # one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
@@ -368,12 +395,14 @@ class Distiller:
                         interm_loss, micro_grad = grad_fn(self.student_params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
 
                         # average accross batch size
+                        # Do we need this?
                         # micro_grad = with_sharding_constraint(micro_grad, self.student_params_spec)
 
                         grad = jax.tree_map(lambda x, y : x+y, grad, micro_grad)
                         loss += interm_loss
 
                         del logits_teacher, one_hot_labels
+                        break
                 else:
                     # step 1: get the teacher loss
                     # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
@@ -382,7 +411,6 @@ class Distiller:
                     # step2: one hot encode the next tokens
                     # one_hot_labels = one_hot(batch[:, :self.params.max_seq_len], self.params.vocab_size)
                     one_hot_labels = jax.pmap(self._one_hot, in_axes=(0))(micro_batch[:, :self.params.max_seq_len])
-
 
                     # step3: perform backpropagation by computing student's loss
                     # Line below are copied and adapted from https://github.com/huggingface/transformers/blob/2c5747edfe383eee073119de784fa148befe9f2d/examples/flax/summarization/run_summarization_flax.py#L786
@@ -397,9 +425,12 @@ class Distiller:
                 print("Loss ={}".format(loss.item()))
 
                 # Inspired from: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html
-                updates, self.state = self.tx.update(grad, self.state)
-                self.student_params = optax.apply_updates(self.student_params, updates)
-                self._partition_student_model()
+                if self.params.optax_gradient:
+                    updates, self.state = self.tx.update(grad, self.state)
+                    self.student_params = optax.apply_updates(self.student_params, updates)
+                    self._partition_student_model()
+                else:
+                    self.state = self.state.apply_gradient(grad, learning_rate=self.params.learning_rate)
 
                 # Update number of seen tokens
                 seen_tokens += (batch.shape[0] * batch.shape[1])
