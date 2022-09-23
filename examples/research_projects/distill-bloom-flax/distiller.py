@@ -158,27 +158,6 @@ class Distiller:
         # Delete the intermediate variable
         del dummy_state, devices
 
-    # def _init_optimizer(self):
-    #     r"""
-    #         Initialize the optimizer by creating a Optax optimizer
-    #         The optimizer does not need to be partitionned if the partition function of the model has been called before 
-    #         calling this function.
-
-    #         Documentation at: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html 
-    #     """
-    #     optimizer_def = getattr(optax, self.params.optimizer_name)
-    #     self.tx = optimizer_def(self.params.learning_rate)
-
-    #     self.state = self.tx.init(self.student_params)
-
-    #     shard_params = self.student_partitioner.partition(lambda x: x, (self.student_params_spec,), self.student_params_spec)
-
-    #     # For now shard only for adam
-    #     if self.params.optimizer_name == "adam":
-    #         sharded_mu = shard_params(self.state[0].mu)
-    #         sharded_nu = shard_params(self.state[0].nu)
-    #         self.state = (optax.ScaleByAdamState(self.state[0][0], sharded_mu, sharded_nu), EmptyState())
-
     def _init_optimizer(self):
         r"""
             Initialize the optimizer by creating a Optax optimizer
@@ -422,6 +401,7 @@ class Distiller:
                 loss = jax.tree_map(lambda l: l / self.params.batch_size, loss)
                 # End copied lines
 
+                # If it prints here everything works as expected
                 print("Loss ={}".format(loss.item()))
 
                 # Inspired from: https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html
@@ -429,6 +409,7 @@ class Distiller:
                     updates, self.state = self.tx.update(grad, self.state)
                     self.student_params = optax.apply_updates(self.student_params, updates)
                     self._partition_student_model()
+                # The t5x newest TrainState should take care of it
                 else:
                     self.state = self.state.apply_gradient(grad, learning_rate=self.params.learning_rate)
 
