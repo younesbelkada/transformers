@@ -69,3 +69,5 @@ class Parameters:
         args = parser.parse_args()
         instance: Parameters = args.parameters
         return instance
+
+# 2 OP par forward / 4 par backward

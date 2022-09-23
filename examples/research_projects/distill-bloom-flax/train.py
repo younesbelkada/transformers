@@ -45,6 +45,9 @@ def main():
     distiller = Distiller(params, dataloader, teacher, student, student_params, teacher_params, dtype)
     distiller.train()
 
+    # Save the models in a global device array
+    # Check t5x checkpointers -> check bloom inference repo
+
 
 if __name__ == "__main__":
     main()

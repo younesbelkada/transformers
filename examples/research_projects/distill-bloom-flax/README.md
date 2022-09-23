@@ -121,3 +121,6 @@ We use the `params` attribute to get the params spec of the parameters!
 
 ### Step 2: Partition the student optimizer
 
+This is done automatically by checking out the latest commit of T5x that adds this support (Flax removed optim so they had to come up with a fix). Make sure the optimizer are sharded by printing the state and checking that the gradients that you get are still sharded!
+
+### Compute the loss and get the gradients
