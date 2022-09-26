@@ -118,9 +118,22 @@ We assign half of the devices to the student model and the other half to the tea
 `mesh_axes` defines the structure of the mesh for each axis and each component for inference (params, flax_mutables, etc)
 We use the `params` attribute to get the params spec of the parameters!
 
+Check [this repo](https://github.com/google-research/t5x/blob/main/docs/usage/partitioning.md#example-configurations) for some partitionning examples.
+
 
 ### Step 2: Partition the student optimizer
 
 This is done automatically by checking out the latest commit of T5x that adds this support (Flax removed optim so they had to come up with a fix). Make sure the optimizer are sharded by printing the state and checking that the gradients that you get are still sharded!
 
 ### Compute the loss and get the gradients
+
+Here we apply gradient accumulation using micro-batches, for each micro-batch we compute the microgradients and accumulate those gradients until we reach `batch_size`. It is absolutely necessarly to have the whole training step encapsulated into one single function in order the gradient computation to be done properly. 
+Note that the student parameters are stored inside the optimizer state, and we access the parameters by doing `self.state.params`.
+
+## TODOs
+
+- Checkpointer to save the optimizer state 
+- dataset track (where the training has stopped)
+- Better understand logical axis (especially for data)
+- Dataset shuffling
+- Play with logical axis?

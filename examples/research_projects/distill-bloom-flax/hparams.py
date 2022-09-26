@@ -33,14 +33,14 @@ class Hparams:
 
     # Dataset params
     epochs: int = 1
-    batch_size: int = 8
+    batch_size: int = 128
     use_gradient_accumulation: bool = True
     micro_batch_size: int = 2
     num_workers: int = 0
     # path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
     path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/bigscience-data/roots_fr_uncorpus/"
     ext: str = ".bin"
-    max_seq_len: int = 2048
+    max_seq_len: int = 512
     vocab_size: int = 250880
 
     # Learning params
@@ -51,9 +51,17 @@ class Hparams:
     path_optimizer_state: str = "/home/younesbelkada/disk/wandb_logs/"
     step_size: int = 1
     optax_gradient: bool = False
+    
+    # checkpointer params
+    restore_from_checkpoint: bool = False
+    path_save_checkpoint: str = "/home/younesbelkada/disk/checkpoints/"
+    path_load_checkpoint: str = "/home/younesbelkada/disk/checkpoints/"
 
     # eval params
     eval_steps: int = 100
+
+    # scheduler params
+    schedule_steps: int = 100
 
 
 @dataclass

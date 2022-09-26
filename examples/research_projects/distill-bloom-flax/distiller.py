@@ -31,7 +31,9 @@ from jax.experimental import maps, PartitionSpec
 
 from t5x.partitioning import PjitPartitioner
 from t5x.train_state import FlaxOptimTrainState, InferenceState
+from t5x.checkpoints import Checkpointer
 import t5x.optimizers as optimizers
+
 
 
 from logging_utils import logger
@@ -170,6 +172,22 @@ class Distiller:
 
         # Delete the intermediate variable
         del dummy_state
+    
+    def _init_checkpointer(self):
+        r"""
+            Initializes the checkpointer, with that it is possible to load and save the optimizer states of stopped trainings
+            Loads and overwrites the optimizer state with the one that has been saved if applicable
+        """
+        path_checkpoint = self.params.path_save_checkpoint if not self.params.restore_from_checkpoint else self.params.path_load_checkpoint
+        
+        state_shapes = jax.eval_shape(self._student_init)
+        self.checkpointer = Checkpointer(state_shapes, path_checkpoint, use_gda=True, restore_dtype=jnp.bfloat16, save_dtype=jnp.bfloat16)
+
+        if self.params.restore_from_checkpoint:
+            # TODO: check if it works correctly
+            self.state = self.checkpointer.restore(path=self.params.path_load_checkpoint)
+
+            # TODO: update the dataset?
 
     def _init_optimizer(self):
         r"""
@@ -196,7 +214,7 @@ class Distiller:
 
         self.state = init_state(model_variables)
 
-        del model_variables
+        del model_variables, self.student_params
 
 
     def _student_init(self):
@@ -238,7 +256,7 @@ class Distiller:
         )
 
         self._train_step = self.student_partitioner.partition(
-            self._train_step, in_axis_resources=(self.student_params_spec, P("data"), P("data"), P("data")), out_axis_resources=None
+            self._train_step, in_axis_resources=(self.student_params_spec, self.teacher_params_spec, P("data"), P("data")), out_axis_resources=None
         )
     
     def _teacher_step(self, params, batch):
@@ -247,7 +265,7 @@ class Distiller:
 
     def _log_param_norm(self, grad):
         layer_grad_norm = jax.tree_map(jnp.linalg.norm, grad).unfreeze()
-        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.student_params).unfreeze()
+        layer_param_norm = jax.tree_map(jnp.linalg.norm, self.state.params).unfreeze()
 
         logs = {
             "layer_grad_norm": layer_grad_norm,
@@ -271,13 +289,13 @@ class Distiller:
 
             wandb.log(log_metrics, step)
     
-    def _train_step(self, student_params, teacher_logits, batch, one_hot_labels):
+    def _train_step(self, student_params, teacher_params, batch, one_hot_labels):
         """
         Train step that implements Distillation loss as defined in Distill-BERT https://arxiv.org/pdf/1910.01108.pdf
         Together with LM loss for training auto regressive language models
         """
         # Step 1: get the teacher logits
-        # teacher_logits = self.teacher_model(batch, params=teacher_params).logits
+        teacher_logits = self.teacher_model(batch, params=teacher_params).logits
 
         # Step 2: get the student logits
         student_logits = self.student_model(batch, params=student_params).logits
@@ -327,7 +345,8 @@ class Distiller:
                 if self.params.use_gradient_accumulation:
 
                     # TODO: partition it
-                    grad = jax.tree_map(jnp.zeros_like, self.student_params)
+                    grad = jax.tree_map(jnp.zeros_like, self.state.params)
+                    grad = self.student_partitioner.partition(lambda x: x, (self.student_params_spec,), self.student_params_spec)(grad)
                     # grad = with_sharding_constraint(grad, self.student_params_spec)
 
                     loss = jnp.array([0])
@@ -337,7 +356,7 @@ class Distiller:
                         # micro_batch = with_sharding_constraint(micro_batch, batch_spec)
 
                         # step 1: get the teacher loss
-                        logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
+                        # logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
 
                         # step2: one hot encode the next tokens
                         # one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
@@ -346,9 +365,7 @@ class Distiller:
                         # get loss and gradients
                         # Getting the loss does not fail 
                         # But computing the gradients 
-                        # loss = self._train_step(self.student_params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
-                        # interm_loss, micro_grad = grad_fn(self.student_params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
-                        interm_loss, micro_grad = grad_fn(self.student_params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
+                        interm_loss, micro_grad = grad_fn(self.state.params, self.teacher_params, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
 
                         # average accross batch size
                         # Do we need this?
@@ -357,8 +374,7 @@ class Distiller:
                         grad = jax.tree_map(lambda x, y : x+y, grad, micro_grad)
                         loss += interm_loss
 
-                        del logits_teacher, one_hot_labels
-                        break
+                        del one_hot_labels
                 else:
                     # step 1: get the teacher loss
                     # logits_teacher = self.batched_teacher_step(teacher_model.params, batch[:, :i])
@@ -386,6 +402,8 @@ class Distiller:
                     updates, self.state = self.tx.update(grad, self.state)
                     self.student_params = optax.apply_updates(self.student_params, updates)
                     self._partition_student_model()
+
+                    del updates
                 # The t5x newest TrainState should take care of partitioning the opt state
                 else:
                     self.state = self.state.apply_gradient(grad, learning_rate=self.params.learning_rate)
@@ -403,7 +421,7 @@ class Distiller:
                 logs.update(norm_logs)
                 self._log_metrics(logs, step)
 
-                del logs, norm_logs, grad, updates
+                del logs, norm_logs, grad
 
                 step += 1
 
