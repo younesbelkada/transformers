@@ -512,6 +512,9 @@ class FlaxBloomPreTrainedModel(FlaxPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        if len(input_ids.shape) == 1:
+            input_ids = jnp.expand_dims(input_ids, 0)
+        
         batch_size, sequence_length = input_ids.shape
 
         if attention_mask is None:

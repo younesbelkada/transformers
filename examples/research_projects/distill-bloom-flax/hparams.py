@@ -35,7 +35,7 @@ class Hparams:
     epochs: int = 1
     batch_size: int = 128
     use_gradient_accumulation: bool = True
-    micro_batch_size: int = 2
+    micro_batch_size: int = 4
     num_workers: int = 0
     # path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
     path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/bigscience-data/roots_fr_uncorpus/"
@@ -51,6 +51,7 @@ class Hparams:
     path_optimizer_state: str = "/home/younesbelkada/disk/wandb_logs/"
     step_size: int = 1
     optax_gradient: bool = False
+    use_vmap_trick: bool = True
     
     # checkpointer params
     restore_from_checkpoint: bool = False
