@@ -26,8 +26,7 @@ from flax.linen import partitioning as flax_partitioning
 from flax.core.frozen_dict import freeze, unfreeze
 from jax.experimental import PartitionSpec as P
 
-from jax.experimental.pjit import pjit, with_sharding_constraint
-from jax.experimental import maps, PartitionSpec
+from flax.linen.partitioning import with_sharding_constraint
 
 from t5x.partitioning import PjitPartitioner
 from t5x.train_state import FlaxOptimTrainState, InferenceState
@@ -353,7 +352,6 @@ class Distiller:
 
                     for j in range(0, self.params.batch_size-self.params.micro_batch_size, self.params.micro_batch_size):
                         micro_batch = batch[j:(j+self.params.micro_batch_size)]
-                        # micro_batch = with_sharding_constraint(micro_batch, batch_spec)
 
                         # step 1: get the teacher loss
                         # logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
@@ -361,6 +359,9 @@ class Distiller:
                         # step2: one hot encode the next tokens
                         # one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
                         one_hot_labels = jax.pmap(self._one_hot, in_axes=(0))(micro_batch[:, :self.params.max_seq_len])
+
+                        micro_batch = with_sharding_constraint(micro_batch, ("batch", "length"))
+                        one_hot_labels = with_sharding_constraint(one_hot_labels, ("batch", "length"))
 
                         # get loss and gradients
                         # Getting the loss does not fail 

@@ -40,7 +40,7 @@ class Hparams:
     # path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
     path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/bigscience-data/roots_fr_uncorpus/"
     ext: str = ".bin"
-    max_seq_len: int = 512
+    max_seq_len: int = 2048
     vocab_size: int = 250880
 
     # Learning params
