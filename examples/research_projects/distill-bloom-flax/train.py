@@ -1,3 +1,7 @@
+import os
+os.environ["FLAX_PROFILE"] = "true"
+
+import jax
 import jax.numpy as jnp
 from dataloader import AutoRegressiveDataLoader, AutoRegressiveDataset
 from distiller import Distiller
@@ -28,8 +32,14 @@ def main():
 
     teacher = FlaxBloomForCausalLM(teacher_config, _do_init=False, dtype=dtype, use_scan=False)
 
-    student = FlaxBloomForCausalLM.from_pretrained(params.student_path, from_pt=True, use_scan=False, dtype=dtype)
+    student = FlaxBloomForCausalLM.from_pretrained(params.student_path, from_pt=True, use_scan=False, dtype=dtype, revision="init_step")
     student_config = student.config
+
+    if params.init_type == "random":
+        student = FlaxBloomForCausalLM(student_config, use_scan=False, dtype=dtype)
+        rng = jax.random.PRNGKey(758493) 
+        student_params = student.init_weights(rng, (1, 1))
+
 
     if params.dtype == "bfloat16":
         student_params = student.to_bf16(student.params)

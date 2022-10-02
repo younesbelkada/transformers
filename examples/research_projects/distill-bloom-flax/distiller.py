@@ -256,7 +256,7 @@ class Distiller:
         )
 
         self._train_step = self.student_partitioner.partition(
-            self._train_step, in_axis_resources=(self.student_params_spec, P("data"), P("data")), out_axis_resources=None
+            self._train_step, in_axis_resources=(self.student_params_spec, P("data"), P("data"), P("data")), out_axis_resources=None
         )
     
     def _teacher_step(self, params, batch):
@@ -289,13 +289,13 @@ class Distiller:
 
             wandb.log(log_metrics, step)
     
-    def _train_step(self, student_params, batch, one_hot_labels):
+    def _train_step(self, student_params, teacher_logits, batch, one_hot_labels):
         """
         Train step that implements Distillation loss as defined in Distill-BERT https://arxiv.org/pdf/1910.01108.pdf
         Together with LM loss for training auto regressive language models
         """
         # Step 1: get the teacher logits
-        teacher_logits = self.teacher_model(batch, params=self.teacher_params).logits
+        # teacher_logits = self.teacher_model(batch, params=self.teacher_params).logits
 
         # Step 2: get the student logits
         student_logits = self.student_model(batch, params=student_params).logits
@@ -358,7 +358,7 @@ class Distiller:
                         micro_batch = batch[j:(j+self.params.micro_batch_size)]
 
                         # step 1: get the teacher loss
-                        # logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
+                        logits_teacher = self.batched_teacher_step(self.teacher_params, micro_batch[:, :self.params.max_seq_len-1])
 
                         # step2: one hot encode the next tokens
                         # one_hot_labels = one_hot(micro_batch[:, :self.params.max_seq_len], self.params.vocab_size)
@@ -371,16 +371,18 @@ class Distiller:
                         # Getting the loss does not fail 
                         # But computing the gradients 
 
+                        # Inspired from: https://github.com/borisdayma/dalle-mini/blob/f05d82b9c474a27f9def742ce97c1d265a2952e4/tools/train/train.py#L1210
+                        # vmap does not apply the operations on the TPUs..
                         if self.params.use_vmap_trick:
                             interm_loss, micro_grad = jax.vmap(
-                                grad_fn, in_axes=(self.student_params_spec, 0, 0), out_axes=(None, 0)
+                                grad_fn, in_axes=(None, 0, 0), out_axes=(None, 0)
                             )(self.state.params, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
                             
                             micro_grad = jax.tree_util.tree_map(
                                 lambda x: jnp.mean(x, axis=0), (micro_grad)
                             )
                         else:
-                            interm_loss, micro_grad = grad_fn(self.state.params, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
+                            interm_loss, micro_grad = grad_fn(self.state.params, logits_teacher, micro_batch[:, :self.params.max_seq_len-1], one_hot_labels)
 
                         micro_grad = with_sharding_constraint(micro_grad, self.student_params_spec)
                         # average accross batch size
@@ -389,6 +391,7 @@ class Distiller:
 
                         grad = jax.tree_map(lambda x, y : x+y, grad, micro_grad)
                         loss += interm_loss
+                        print(interm_loss)
 
                         del one_hot_labels, micro_grad, interm_loss
                 else:
@@ -444,4 +447,7 @@ class Distiller:
                 if i % self.params.eval_steps == 0:
                     self._eval_step()
                 #break
+
+                if seen_tokens > 2e6:
+                    break
             break

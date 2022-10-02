@@ -26,6 +26,9 @@ class Hparams:
     dp_devices: int = 2
     mp_devices: int = 4
 
+    # init
+    init_type: str = "init_step"
+
     # teacher / student params
     teacher_path: str = "bigscience/bloom-1b7"
     student_path: str = "bigscience/distill-bloom-1b3-10x"
@@ -33,14 +36,14 @@ class Hparams:
 
     # Dataset params
     epochs: int = 1
-    batch_size: int = 128
+    batch_size: int = 64
     use_gradient_accumulation: bool = True
-    micro_batch_size: int = 4
+    micro_batch_size: int = 2
     num_workers: int = 0
     # path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/roots_ar_uncorpus"
     path_bin_data: str = "/home/younesbelkada/disk/data/bloom-data/train/bigscience-data/roots_fr_uncorpus/"
     ext: str = ".bin"
-    max_seq_len: int = 2048
+    max_seq_len: int = 128
     vocab_size: int = 250880
 
     # Learning params
@@ -51,7 +54,7 @@ class Hparams:
     path_optimizer_state: str = "/home/younesbelkada/disk/wandb_logs/"
     step_size: int = 1
     optax_gradient: bool = False
-    use_vmap_trick: bool = True
+    use_vmap_trick: bool = False
     
     # checkpointer params
     restore_from_checkpoint: bool = False

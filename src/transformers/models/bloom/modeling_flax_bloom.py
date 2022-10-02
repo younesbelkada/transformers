@@ -119,12 +119,14 @@ class FlaxBloomAttention(nn.Module):
             kernel_axes=('embed', 'kv'),
             dtype=self.dtype,
             params_dtype=self.params_dtype,
+            # kernel_init=jax.nn.initializers.normal(stddev=self.config.initializer_range)
         )
         self.dense = layers.DenseGeneral(
             features=self.hidden_size,
             kernel_axes=('kv', 'embed'),
             dtype=self.dtype,
             params_dtype=self.params_dtype,
+            # kernel_init=jax.nn.initializers.normal(stddev=self.config.initializer_range)
         )
         self.resid_dropout = nn.Dropout(rate=self.config.hidden_dropout)
 
@@ -319,12 +321,14 @@ class FlaxBloomMLP(nn.Module):
             dtype=self.dtype,
             params_dtype=self.params_dtype,
             kernel_axes=('embed', 'mlp'),
+            # kernel_init=jax.nn.initializers.normal(stddev=self.config.initializer_range)
         )
         self.dense_4h_to_h = layers.DenseGeneral(
             features=self.hidden_size,
             dtype=self.dtype,
             params_dtype=self.params_dtype,
             kernel_axes=('mlp', 'embed'),
+            # kernel_init=jax.nn.initializers.normal(stddev=self.config.initializer_range)
         )
         self.hidden_dropout = nn.Dropout(self.config.hidden_dropout)
         self.act = BloomGELU()
@@ -357,10 +361,10 @@ class FlaxBloomBlock(nn.Module):
     use_scan: bool = False
 
     def setup(self):
-        self.input_layernorm = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, dtype=self.dtype, params_dtype=self.params_dtype)
+        self.input_layernorm = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, dtype=self.dtype, params_dtype=self.params_dtype, scale_init=jax.nn.initializers.normal(stddev=self.config.initializer_range))
 
         self.self_attention = FlaxBloomAttention(self.config, dtype=self.dtype, params_dtype=self.params_dtype)
-        self.post_attention_layernorm = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, dtype=self.dtype, params_dtype=self.params_dtype)
+        self.post_attention_layernorm = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, dtype=self.dtype, params_dtype=self.params_dtype, scale_init=jax.nn.initializers.normal(stddev=self.config.initializer_range))
 
         self.mlp = FlaxBloomMLP(self.config, dtype=self.dtype, params_dtype=self.params_dtype)
 
@@ -643,17 +647,17 @@ class FlaxBloomModule(nn.Module):
         self.word_embeddings = layers.Embed(
             self.config.vocab_size,
             self.embed_dim,
-            embedding_init=nn.initializers.zeros,
+            embedding_init=jax.nn.initializers.normal(stddev=self.config.initializer_range),
             params_dtype=self.params_dtype,
         )
         # post-embedding layernorm
-        self.word_embeddings_layernorm = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, params_dtype=self.params_dtype)
+        self.word_embeddings_layernorm = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, params_dtype=self.params_dtype, scale_init=jax.nn.initializers.normal(stddev=self.config.initializer_range))
 
         # transformer layers
         self.h = FlaxBloomBlockCollection(self.config, dtype=self.dtype, params_dtype=self.params_dtype, use_scan=self.use_scan)
 
         # final layernorm
-        self.ln_f = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, dtype=self.dtype, params_dtype=self.params_dtype)
+        self.ln_f = layers.LayerNorm(epsilon=self.config.layer_norm_epsilon, dtype=self.dtype, params_dtype=self.params_dtype, scale_init=jax.nn.initializers.normal(stddev=self.config.initializer_range))
         # TODO: change how gradient checkpointing is done
         self.gradient_checkpointing = False
 
@@ -714,6 +718,7 @@ class FlaxBloomForCausalLMModule(nn.Module):
     dtype: jnp.dtype = jnp.bfloat16
     params_dtype: jnp.dtype = jnp.bfloat16
     use_scan: bool = False
+
 
     def setup(self):
         self.transformer = FlaxBloomModule(self.config, dtype=self.dtype, params_dtype=self.params_dtype, use_scan=self.use_scan)

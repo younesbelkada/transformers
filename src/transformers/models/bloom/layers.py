@@ -77,7 +77,7 @@ def variance_scaling(scale, mode, distribution, in_axis=-2, out_axis=-1,
   """Inlined JAX `nn.initializer.variance_scaling`."""
 
   def init(key, shape, dtype=dtype):
-    return jnp.zeros(shape, dtype=dtype)
+    # return jnp.zeros(shape, dtype=dtype)
     dtype = jax.dtypes.canonicalize_dtype(dtype)
     shape = jax.core.as_named_shape(shape)
     fan_in, fan_out = _compute_fans(shape, in_axis, out_axis)
@@ -212,7 +212,7 @@ class MultiHeadDotProductAttention(nn.Module):
   head_dim: int
   dtype: DType = jnp.float32
   dropout_rate: float = 0.
-  kernel_init: NdInitializer = nd_dense_init(1.0, 'fan_in', 'normal')
+  kernel_init: NdInitializer = nd_dense_init(1.0, 'fan_avg', 'truncated_normal')
   float32_logits: bool = False  # computes logits in float32 for stability.
 
   @nn.compact
@@ -412,7 +412,7 @@ class DenseGeneral(nn.Module):
   axis: Union[Iterable[int], int] = -1
   dtype: DType = jnp.float32
   params_dtype: DType = jnp.float32
-  kernel_init: NdInitializer = nd_dense_init(1.0, 'fan_in', 'normal')
+  kernel_init: NdInitializer = nd_dense_init(1.0, 'fan_avg', 'truncated_normal')
   kernel_axes: Tuple[str, ...] = ()
   use_bias: bool = True
   bias_init: Any = nn.initializers.zeros
