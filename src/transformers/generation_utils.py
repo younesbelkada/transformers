@@ -2003,6 +2003,9 @@ class GenerationMixin:
                 output_hidden_states=output_hidden_states,
             )
 
+            if outputs.logits.dtype == torch.float16:
+                outputs.logits = outputs.logits.float()
+
             if synced_gpus and this_peer_finished:
                 continue  # don't waste resources running the code we don't need
 
