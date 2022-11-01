@@ -785,6 +785,7 @@ class Pipeline(_ScikitCompat):
         self.call_count = 0
         self._batch_size = kwargs.pop("batch_size", None)
         self._num_workers = kwargs.pop("num_workers", None)
+        self.use_bettertransformers_backend = kwargs.pop("use_bettertransformers_backend", False)
         self._preprocess_params, self._forward_params, self._postprocess_params = self._sanitize_parameters(**kwargs)
 
     def save_pretrained(self, save_directory: str):

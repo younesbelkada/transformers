@@ -737,6 +737,11 @@ def pipeline(
     model_config = model.config
     hub_kwargs["_commit_hash"] = model.config._commit_hash
 
+    if kwargs["use_bettertransformers_backend"]:
+        from optimum.bettertransformer import BetterTransformer
+
+        model = BetterTransformer.transform(model)
+
     load_tokenizer = type(model_config) in TOKENIZER_MAPPING or model_config.tokenizer_class is not None
     load_feature_extractor = type(model_config) in FEATURE_EXTRACTOR_MAPPING or feature_extractor is not None
 
