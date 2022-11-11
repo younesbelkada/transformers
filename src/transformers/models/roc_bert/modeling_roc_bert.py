@@ -748,6 +748,7 @@ class RoCBertPreTrainedModel(PreTrainedModel):
     base_model_prefix = "roc_bert"
     supports_gradient_checkpointing = True
     _keys_to_ignore_on_load_missing = [r"position_ids"]
+    _no_split_modules = ["RoCBertLayer"]
 
     def _init_weights(self, module):
         """Initialize the weights"""
