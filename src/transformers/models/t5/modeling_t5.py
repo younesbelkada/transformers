@@ -806,6 +806,46 @@ class T5PreTrainedModel(PreTrainedModel):
             module.o.weight.data.normal_(mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
             if module.has_relative_attention_bias:
                 module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((d_model) ** -0.5))
+    
+    def _enable_fp16_inference(self):
+        emb_scaling = 1 / 32.0
+        att_v_scaling = 1 / 4.0
+        att_o_scaling = 1 / 8.0
+        ff_wi_scaling = 1 / 4.0
+        ff_wo_scaling = 1 / 4.0
+        ff_ln_scaling = 1 / 2.0
+
+        assert att_v_scaling * att_o_scaling == emb_scaling
+        assert ff_wi_scaling * ff_wo_scaling * ff_ln_scaling == emb_scaling
+
+        with torch.no_grad():
+            self.shared.weight *= emb_scaling
+            for unit in self.encoder.block:
+                unit.layer[0].SelfAttention.v.weight *= att_v_scaling
+                unit.layer[0].SelfAttention.o.weight *= att_o_scaling
+                if hasattr(unit.layer[1].DenseReluDense, "wi"):
+                    unit.layer[1].DenseReluDense.wi.weight *= ff_wi_scaling
+                    unit.layer[1].DenseReluDense.wo.weight *= ff_wo_scaling
+                else:
+                    unit.layer[1].DenseReluDense.wi_0.weight *= ff_wi_scaling
+                    unit.layer[1].DenseReluDense.wi_1.weight *= ff_wo_scaling
+                    unit.layer[1].DenseReluDense.wo.weight *= ff_wo_scaling
+                unit.layer[1].layer_norm.weight *= ff_ln_scaling
+            for unit in self.decoder.block:
+                unit.layer[0].SelfAttention.v.weight *= att_v_scaling
+                unit.layer[0].SelfAttention.o.weight *= att_o_scaling
+                unit.layer[1].EncDecAttention.v.weight *= att_v_scaling
+                unit.layer[1].EncDecAttention.o.weight *= att_o_scaling
+                if hasattr(unit.layer[2].DenseReluDense, "wi"):
+                    unit.layer[2].DenseReluDense.wi.weight *= ff_wi_scaling
+                    unit.layer[2].DenseReluDense.wo.weight *= ff_wo_scaling
+                else:
+                    unit.layer[2].DenseReluDense.wi_0.weight *= ff_wi_scaling
+                    unit.layer[2].DenseReluDense.wi_1.weight *= ff_wo_scaling
+                    unit.layer[2].DenseReluDense.wo.weight *= ff_wo_scaling
+                unit.layer[2].layer_norm.weight *= ff_ln_scaling
+            self.lm_scale_modifier = nn.Parameter(torch.ones(unit.layer[2].layer_norm.weight.shape[0])).to(unit.layer[2].layer_norm.weight.device)
+            self.lm_scale_modifier /= emb_scaling
 
     def _set_gradient_checkpointing(self, module, value=False):
         if isinstance(module, (T5Attention, T5Stack)):
@@ -1672,6 +1712,9 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             # Rescale output before projecting on vocab
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
             sequence_output = sequence_output * (self.model_dim**-0.5)
+        
+        if hasattr(self, "lm_scale_modifier"):
+            sequence_output = sequence_output * self.lm_scale_modifier.to(sequence_output.dtype)
 
         lm_logits = self.lm_head(sequence_output)
 
