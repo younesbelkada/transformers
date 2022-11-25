@@ -175,25 +175,52 @@ class BatchFeature(UserDict):
         return self
 
     @torch_required
-    # Copied from transformers.tokenization_utils_base.BatchEncoding.to with BatchEncoding->BatchFeature
-    def to(self, device: Union[str, "torch.device"]) -> "BatchFeature":
+    def to(
+        self, device: Optional[Union[str, "torch.device"]] = None, dtype: Optional[Union[str, "torch.dtype"]] = None
+    ) -> "BatchFeature":
         """
-        Send all values to device by calling `v.to(device)` (PyTorch only).
+        Send all values to device or dtype by calling `v.to(device)` (PyTorch only).
 
         Args:
             device (`str` or `torch.device`): The device to put the tensors on.
+            dtype (`str` or `torch.dtype`): The device to put the tensors on.
 
         Returns:
             [`BatchFeature`]: The same instance after modification.
         """
+        if is_torch_available():
+            import torch
+        # Check if `dtype` is a valid `dtype``
+        if dtype is not None:
+            if isinstance(dtype, str):
+                dtype = getattr(torch, dtype)
+            elif isinstance(dtype, torch.dtype):
+                dtype = dtype
+            else:
+                logger.warning(f"Attempting to cast a BatchFeature to type {str(dtype)}. This is not supported.")
 
-        # This check catches things like APEX blindly calling "to" on all inputs to a module
-        # Otherwise it passes the casts down and casts the LongTensor containing the token idxs
-        # into a HalfTensor
-        if isinstance(device, str) or is_torch_device(device) or isinstance(device, int):
-            self.data = {k: v.to(device=device) for k, v in self.data.items()}
-        else:
-            logger.warning(f"Attempting to cast a BatchFeature to type {str(device)}. This is not supported.")
+            if not torch.is_floating_point(torch.empty(1, dtype=dtype)):
+                logger.warning(
+                    f"Attempting to cast a BatchFeature to dtype {str(dtype)}. You may encounter unexpected behavior."
+                )
+
+            casted_input = {}
+            for k, v in self.data.items():
+                # cast only floating points
+                if torch.is_floating_point(v):
+                    v = v.to(dtype=dtype)
+                casted_input[k] = v
+            self.data = casted_input
+            # self.data = {k: v.to(dtype=dtype) if torch.is_floating_point(v) for k, v in self.data.items()}
+
+        if device is not None:
+            # This check catches things like APEX blindly calling "to" on all inputs to a module
+            # Otherwise it passes the casts down and casts the LongTensor containing the token idxs
+            # into a HalfTensor
+            if isinstance(device, str) or is_torch_device(device) or isinstance(device, int):
+                self.data = {k: v.to(device=device) for k, v in self.data.items()}
+            else:
+                logger.warning(f"Attempting to cast a BatchFeature to type {str(device)}. This is not supported.")
         return self
 
 
