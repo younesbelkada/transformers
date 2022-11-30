@@ -24,6 +24,7 @@ import torch.utils.checkpoint
 from torch import Tensor, nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from ...activations import ACT2FN
 from ...modeling_outputs import (
     BackboneOutput,
     BaseModelOutputWithNoAttention,
@@ -156,7 +157,6 @@ class BitGroupNormActivation(nn.GroupNorm):
             _num_groups(num_channels, num_groups, group_size), num_channels, eps=eps, affine=affine
         )
         self.drop = drop_layer() if drop_layer is not None else nn.Identity()
-        # act_layer = get_act_layer(act_layer)  # string -> nn.Module
         if act_layer is not None and apply_act:
             act_args = dict(inplace=True) if inplace else {}
             self.act = act_layer(**act_args)
@@ -387,16 +387,10 @@ class BitPreActivationBottleneckLayer(nn.Module):
     def forward(self, x, print_values=False):
         x_preact = self.norm1(x)
 
-        # if print_values:
-        #     print("Hidden states after first norm:", x_preact[0, 0, :3, :3])
-
         # shortcut branch
         shortcut = x
         if self.downsample is not None:
             shortcut = self.downsample(x_preact, print_values)
-
-        # if print_values:
-        #     print("Hidden states after downsample:", shortcut[0, 0, :3, :3])
 
         # residual branch
         x = self.conv1(x_preact)
@@ -452,7 +446,7 @@ class BitBottleneckLayer(nn.Module):
         self.conv3 = conv_layer(mid_chs, out_channels, 1)
         self.norm3 = norm_layer(out_channels, apply_act=False)
         self.drop_path = BitDropPath(drop_path_rate) if drop_path_rate > 0 else nn.Identity()
-        self.act3 = act_layer(inplace=True)
+        self.act3 = act_layer
 
     def forward(self, x, print_values=False):
         # shortcut branch
@@ -550,11 +544,7 @@ class BitStage(nn.Module):
     def forward(self, input: Tensor, print_values=False) -> Tensor:
         hidden_state = input
         for idx, layer in enumerate(self.layers):
-            # if idx == 0 and print_values:
-            #     print(f"Hidden states before block {idx}", hidden_state[0, 0, :3, :3])
             hidden_state = layer(hidden_state, print_values=idx == 0)
-            # if idx == 0 and print_values:
-            #     print(f"Hidden states after block {idx}", hidden_state[0, 0, :3, :3])
         return hidden_state
 
 
@@ -563,7 +553,7 @@ class BitEncoder(nn.Module):
         super().__init__()
         self.stages = nn.ModuleList([])
 
-        act_layer = nn.ReLU
+        act_layer = ACT2FN[config.hidden_act]
         if config.conv_layer == "std_conv":
             conv_layer = partial(StdConv2d, eps=1e-8)
         elif config.conv_layer == "std_conv_same":
@@ -617,8 +607,6 @@ class BitEncoder(nn.Module):
                 hidden_states = hidden_states + (hidden_state,)
 
             hidden_state = stage_module(hidden_state, print_values=idx == 0)
-            print("Shape of hidden states after stage", idx, hidden_state.shape)
-            print("Hidden states after stage", idx, hidden_state[0, 0, :3, :3])
 
         if output_hidden_states:
             hidden_states = hidden_states + (hidden_state,)

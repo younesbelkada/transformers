@@ -49,8 +49,6 @@ class BitConfig(PretrainedConfig):
         hidden_act (`str`, *optional*, defaults to `"relu"`):
             The non-linear activation function in each block. If string, `"gelu"`, `"relu"`, `"selu"` and `"gelu_new"`
             are supported.
-        downsample_in_first_stage (`bool`, *optional*, defaults to `False`):
-            If `True`, the first stage will downsample the inputs using a `stride` of 2.
         drop_path_rate (`float`, *optional*, defaults to 0.0):
             The drop path rate for the stochastic depth.
         output_stride (`int`, *optional*, defaults to 32):
@@ -84,7 +82,6 @@ class BitConfig(PretrainedConfig):
         stem_type="",
         layer_type="preactivation",
         hidden_act="relu",
-        downsample_in_first_stage=False,
         drop_path_rate=0.0,
         output_stride=32,
         width_factor=1,
@@ -102,7 +99,6 @@ class BitConfig(PretrainedConfig):
         self.stem_type = stem_type
         self.layer_type = layer_type
         self.hidden_act = hidden_act
-        self.downsample_in_first_stage = downsample_in_first_stage
         self.drop_path_rate = drop_path_rate
         self.output_stride = output_stride
         self.width_factor = width_factor
