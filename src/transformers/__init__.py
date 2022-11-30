@@ -5084,8 +5084,8 @@ if TYPE_CHECKING:
         )
         from .models.vit_hybrid import (
             VIT_HYBRID_PRETRAINED_MODEL_ARCHIVE_LIST,
-            ViTHybirdModel,
             ViTHybridForImageClassification,
+            ViTHybridModel,
             ViTHybridPreTrainedModel,
         )
         from .models.vit_mae import (
