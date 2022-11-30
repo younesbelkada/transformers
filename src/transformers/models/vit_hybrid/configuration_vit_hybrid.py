@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2021 Google AI and The HuggingFace Inc. team. All rights reserved.
+# Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,15 +14,20 @@
 # limitations under the License.
 """ ViT Hybrid model configuration"""
 
+import copy
+from typing import Dict
+
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
+from ..auto.configuration_auto import CONFIG_MAPPING
+from ..bit import BitConfig
 
 
 logger = logging.get_logger(__name__)
 
 VIT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP = {
-    "google/vit-base-patch16-224": "https://huggingface.co/vit-base-patch16-224/resolve/main/config.json",
-    # See all ViT models at https://huggingface.co/models?filter=vit
+    "google/vit-base-r50-s16-384": "https://huggingface.co/vit-base-r50-s16-384/resolve/main/config.json",
+    # See all ViT hybrid models at https://huggingface.co/models?filter=vit
 }
 
 
@@ -31,7 +36,7 @@ class ViTHybridConfig(PretrainedConfig):
     This is the configuration class to store the configuration of a [`ViTModel`]. It is used to instantiate an ViT
     model according to the specified arguments, defining the model architecture. Instantiating a configuration with the
     defaults will yield a similar configuration to that of the ViT
-    [google/vit-base-patch16-224](https://huggingface.co/google/vit-base-patch16-224) architecture.
+    [google/vit-base-r50-s16-384](https://huggingface.co/google/vit-base-r50-s16-384) architecture.
 
     Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the
     documentation from [`PretrainedConfig`] for more information.
@@ -65,19 +70,17 @@ class ViTHybridConfig(PretrainedConfig):
             The number of input channels.
         qkv_bias (`bool`, *optional*, defaults to `True`):
             Whether to add a bias to the queries, keys and values.
-        encoder_stride (`int`, `optional`, defaults to 16):
-           Factor to increase the spatial resolution by in the decoder head for masked image modeling.
 
     Example:
 
     ```python
-    >>> from transformers import ViTHybridConfig, ViTModel
+    >>> from transformers import ViTHybridConfig, ViTHybridModel
 
-    >>> # Initializing a ViT Hybrid vit-base-patch16-224 style configuration
+    >>> # Initializing a ViT Hybrid vit-base-r50-s16-384 style configuration
     >>> configuration = ViTHybridConfig()
 
-    >>> # Initializing a model (with random weights) from the vit-base-patch16-224 style configuration
-    >>> model = ViTModel(configuration)
+    >>> # Initializing a model (with random weights) from the vit-base-r50-s16-384 style configuration
+    >>> model = ViTHybridModel(configuration)
 
     >>> # Accessing the model configuration
     >>> configuration = model.config
@@ -96,15 +99,33 @@ class ViTHybridConfig(PretrainedConfig):
         attention_probs_dropout_prob=0.0,
         initializer_range=0.02,
         layer_norm_eps=1e-12,
-        is_encoder_decoder=False,
         image_size=224,
         patch_size=1,
         num_channels=3,
         qkv_bias=True,
-        encoder_stride=16,
         **kwargs
     ):
         super().__init__(**kwargs)
+
+        if backbone_config is None:
+            logger.info("`backbone_config` is `None`. Initializing the config with a `BiT` backbone.")
+            backbone_config = {
+                "stem_type": "same",
+                "conv_layer": "std_conv_same",
+                "layer_type": "bottleneck",
+                "depths": (3, 4, 9),
+                "out_features": ["stage3"],
+            }
+
+        if isinstance(backbone_config, dict):
+            if "model_type" in backbone_config:
+                backbone_config_class = CONFIG_MAPPING[backbone_config["model_type"]]
+            else:
+                logger.info(
+                    "`model_type` is not found in `backbone_config`. Use `ResNet` as the backbone configuration class."
+                )
+                backbone_config_class = BitConfig
+            backbone_config = backbone_config_class(**backbone_config)
 
         self.backbone_config = backbone_config
         self.hidden_size = hidden_size
@@ -120,4 +141,13 @@ class ViTHybridConfig(PretrainedConfig):
         self.patch_size = patch_size
         self.num_channels = num_channels
         self.qkv_bias = qkv_bias
-        self.encoder_stride = encoder_stride
+
+    def to_dict(self) -> Dict[str, any]:
+        """
+        Serializes this instance to a Python dictionary. Override the default [`~PretrainedConfig.to_dict`]. Returns:
+            `Dict[str, any]`: Dictionary of all the attributes that make up this configuration instance,
+        """
+        output = copy.deepcopy(self.__dict__)
+        output["backbone_config"] = self.backbone_config.to_dict()
+        output["model_type"] = self.__class__.model_type
+        return output

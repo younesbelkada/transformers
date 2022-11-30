@@ -46,25 +46,25 @@ def create_rename_keys(config, base_model=False):
     rename_keys.append(("patch_embed.proj.bias", "vit.embeddings.patch_embeddings.projection.bias"))
 
     # backbone
-    rename_keys.append(("patch_embed.backbone.stem.conv.weight", "vit.embeddings.patch_embeddings.backbone.resnetv2.embedder.convolution.weight"))
-    rename_keys.append(("patch_embed.backbone.stem.norm.weight", "vit.embeddings.patch_embeddings.backbone.resnetv2.embedder.norm.weight"))
-    rename_keys.append(("patch_embed.backbone.stem.norm.bias", "vit.embeddings.patch_embeddings.backbone.resnetv2.embedder.norm.bias"))
+    rename_keys.append(("patch_embed.backbone.stem.conv.weight", "vit.embeddings.patch_embeddings.backbone.bit.embedder.convolution.weight"))
+    rename_keys.append(("patch_embed.backbone.stem.norm.weight", "vit.embeddings.patch_embeddings.backbone.bit.embedder.norm.weight"))
+    rename_keys.append(("patch_embed.backbone.stem.norm.bias", "vit.embeddings.patch_embeddings.backbone.bit.embedder.norm.bias"))
 
     for stage_idx in range(len(config.backbone_config.depths)):
         for layer_idx in range(config.backbone_config.depths[stage_idx]):
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.conv1.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.conv1.weight"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm1.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.norm1.weight"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm1.bias", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.norm1.bias"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.conv2.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.conv2.weight"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm2.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.norm2.weight"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm2.bias", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.norm2.bias"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.conv3.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.conv3.weight"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm3.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.norm3.weight"))
-            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm3.bias", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.{layer_idx}.norm3.bias"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.conv1.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.conv1.weight"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm1.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.norm1.weight"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm1.bias", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.norm1.bias"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.conv2.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.conv2.weight"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm2.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.norm2.weight"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm2.bias", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.norm2.bias"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.conv3.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.conv3.weight"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm3.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.norm3.weight"))
+            rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.{layer_idx}.norm3.bias", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.{layer_idx}.norm3.bias"))
 
-        rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.0.downsample.conv.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.0.downsample.conv.weight"))
-        rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.0.downsample.norm.weight", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.0.downsample.norm.weight"))
-        rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.0.downsample.norm.bias", f"vit.embeddings.patch_embeddings.backbone.resnetv2.encoder.stages.{stage_idx}.layers.0.downsample.norm.bias"))
+        rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.0.downsample.conv.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.0.downsample.conv.weight"))
+        rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.0.downsample.norm.weight", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.0.downsample.norm.weight"))
+        rename_keys.append((f"patch_embed.backbone.stages.{stage_idx}.blocks.0.downsample.norm.bias", f"vit.embeddings.patch_embeddings.backbone.bit.encoder.stages.{stage_idx}.layers.0.downsample.norm.bias"))
 
     # transformer encoder
     for i in range(config.num_hidden_layers):
@@ -154,7 +154,7 @@ def prepare_img():
 
 
 @torch.no_grad()
-def convert_vit_checkpoint(vit_name, pytorch_dump_folder_path):
+def convert_vit_checkpoint(vit_name, pytorch_dump_folder_path, push_to_hub=False):
     """
     Copy/paste/tweak model's weights to our ViT structure.
     """
@@ -198,15 +198,11 @@ def convert_vit_checkpoint(vit_name, pytorch_dump_folder_path):
     image = Image.open(requests.get(url, stream=True).raw)
     pixel_values = transform(image).unsqueeze(0)
 
-    print("First values of pixel values:", pixel_values.shape)
-    print(pixel_values[0, :5, :5, :5])
-
     with torch.no_grad():
         outputs = model(pixel_values)
         logits = outputs.logits
 
     print("Predicted class:", logits.argmax(-1).item())
-
     if base_model:
         timm_pooled_output = timm_model.forward_features(pixel_values)
         assert timm_pooled_output.shape == outputs.pooler_output.shape
@@ -224,6 +220,11 @@ def convert_vit_checkpoint(vit_name, pytorch_dump_folder_path):
         # print(f"Saving feature extractor to {pytorch_dump_folder_path}")
         # feature_extractor.save_pretrained(pytorch_dump_folder_path)
 
+    if push_to_hub:
+        print(f"Pushing model and feature extractor to the hub {vit_name}")
+        model.push_to_hub(f"nielsr/{vit_name}")
+        # feature_extractor.push_to_hub(f"nielsr/{vit_name}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -232,11 +233,14 @@ if __name__ == "__main__":
         "--vit_name",
         default="vit_base_r50_s16_384",
         type=str,
-        help="Name of the ViT timm model you'd like to convert.",
+        help="Name of the hybrid ViT timm model you'd like to convert.",
     )
     parser.add_argument(
         "--pytorch_dump_folder_path", default=None, type=str, help="Path to the output PyTorch model directory."
     )
+    parser.add_argument(
+        "--push_to_hub", action="store_true", help="Whether to upload the model to the HuggingFace hub."
+    )
 
     args = parser.parse_args()
-    convert_vit_checkpoint(args.vit_name, args.pytorch_dump_folder_path)
+    convert_vit_checkpoint(args.vit_name, args.pytorch_dump_folder_path, args.push_to_hub)
