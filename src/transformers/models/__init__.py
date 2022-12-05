@@ -62,6 +62,7 @@ from . import (
     donut,
     dpr,
     dpt,
+    dpt_hybrid,
     electra,
     encoder_decoder,
     ernie,

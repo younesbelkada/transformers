@@ -52,6 +52,7 @@ IMAGE_PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("dinat", "ViTImageProcessor"),
         ("donut-swin", "DonutImageProcessor"),
         ("dpt", "DPTImageProcessor"),
+        ("dpt_hybrid", "DptHybridImageProcessor"),
         ("flava", "FlavaImageProcessor"),
         ("glpn", "GLPNImageProcessor"),
         ("groupvit", "CLIPImageProcessor"),

@@ -228,6 +228,7 @@ _import_structure = {
         "DPRReaderTokenizer",
     ],
     "models.dpt": ["DPT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DPTConfig"],
+    "models.dpt_hybrid": ["DPT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP", "DptHybridConfig"],
     "models.electra": ["ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP", "ElectraConfig", "ElectraTokenizer"],
     "models.encoder_decoder": ["EncoderDecoderConfig"],
     "models.ernie": [
@@ -1306,6 +1307,15 @@ else:
             "DPTForSemanticSegmentation",
             "DPTModel",
             "DPTPreTrainedModel",
+        ]
+    )
+    _import_structure["models.dpt_hybrid"].extend(
+        [
+            "DPT_HYBRID_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "DptHybridForDepthEstimation",
+            "DptHybridForSemanticSegmentation",
+            "DptHybridModel",
+            "DptHybridPreTrainedModel",
         ]
     )
     _import_structure["models.electra"].extend(
@@ -3480,6 +3490,7 @@ if TYPE_CHECKING:
         DPRReaderTokenizer,
     )
     from .models.dpt import DPT_PRETRAINED_CONFIG_ARCHIVE_MAP, DPTConfig
+    from .models.dpt_hybrid import DPT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP, DptHybridConfig
     from .models.electra import ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP, ElectraConfig, ElectraTokenizer
     from .models.encoder_decoder import EncoderDecoderConfig
     from .models.ernie import ERNIE_PRETRAINED_CONFIG_ARCHIVE_MAP, ErnieConfig
@@ -4396,6 +4407,13 @@ if TYPE_CHECKING:
             DPTForSemanticSegmentation,
             DPTModel,
             DPTPreTrainedModel,
+        )
+        from .models.dpt_hybrid import (
+            DPT_HYBRID_PRETRAINED_MODEL_ARCHIVE_LIST,
+            DptHybridForDepthEstimation,
+            DptHybridForSemanticSegmentation,
+            DptHybridModel,
+            DptHybridPreTrainedModel,
         )
         from .models.electra import (
             ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,

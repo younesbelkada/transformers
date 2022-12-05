@@ -66,6 +66,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("donut-swin", "DonutSwinModel"),
         ("dpr", "DPRQuestionEncoder"),
         ("dpt", "DPTModel"),
+        ("dpt_hybrid", "DptHybridModel"),
         ("electra", "ElectraModel"),
         ("ernie", "ErnieModel"),
         ("esm", "EsmModel"),
@@ -419,6 +420,7 @@ MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING_NAMES = OrderedDict(
         ("beit", "BeitForSemanticSegmentation"),
         ("data2vec-vision", "Data2VecVisionForSemanticSegmentation"),
         ("dpt", "DPTForSemanticSegmentation"),
+        ("dpt_hybrid", "DptHybridForSemanticSegmentation"),
         ("mobilenet_v2", "MobileNetV2ForSemanticSegmentation"),
         ("mobilevit", "MobileViTForSemanticSegmentation"),
         ("segformer", "SegformerForSemanticSegmentation"),
@@ -514,6 +516,7 @@ MODEL_FOR_DEPTH_ESTIMATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for depth estimation mapping
         ("dpt", "DPTForDepthEstimation"),
+        ("dpt_hybrid", "DptHybridForDepthEstimation"),
         ("glpn", "GLPNForDepthEstimation"),
     ]
 )
