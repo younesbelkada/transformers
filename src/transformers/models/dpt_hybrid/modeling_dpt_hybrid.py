@@ -66,7 +66,6 @@ DPT_HYBRID_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 
-
 # Copied from transformers.models.vit_hybrid.modeling_vit_hybrid.ViTHybridPatchEmbeddings with ViTHybrid->DptHybrid
 class DptHybridViTEmbeddings(nn.Module):
     """
@@ -105,7 +104,6 @@ class DptHybridViTEmbeddings(nn.Module):
             )
             feature_dim = self.backbone.channels[-1]
 
-        
         self.image_size = image_size
         self.patch_size = patch_size[0]
         self.num_channels = num_channels
@@ -114,7 +112,7 @@ class DptHybridViTEmbeddings(nn.Module):
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size))
         self.position_embeddings = nn.Parameter(torch.zeros(1, num_patches + 1, config.hidden_size))
-    
+
     def _resize_pos_embed(self, posemb, grid_size_height, grid_size_width, start_index=1):
         posemb_tok = posemb[:, :start_index]
         posemb_grid = posemb[0, start_index:]
@@ -141,7 +139,7 @@ class DptHybridViTEmbeddings(nn.Module):
                     f"Input image size ({height}*{width}) doesn't match model"
                     f" ({self.image_size[0]}*{self.image_size[1]})."
                 )
-        
+
         position_embeddings = self._resize_pos_embed(
             self.position_embeddings, height // self.patch_size, width // self.patch_size
         )
@@ -474,7 +472,9 @@ class DptHybridReassembleStage(nn.Module):
             if i <= 1:
                 self.layers.append(nn.Identity())
             elif i > 1:
-                self.layers.append(DptHybridReassembleLayer(config, channels=config.neck_hidden_sizes[i], factor=factor))
+                self.layers.append(
+                    DptHybridReassembleLayer(config, channels=config.neck_hidden_sizes[i], factor=factor)
+                )
             # self.layers.append(DptHybridReassembleLayer(config, channels=config.neck_hidden_sizes[i], factor=factor))
 
         if config.readout_type == "project":
@@ -833,8 +833,8 @@ class DptHybridViTPooler(nn.Module):
 # Copied from transformers.models.dpt.modeling_dpt.DPTNeck with DPT->DptHybrid
 class DptHybridNeck(nn.Module):
     """
-    DptHybridNeck. A neck is a module that is normally used between the backbone and the head. It takes a list of tensors as
-    input and produces another list of tensors as output. For DptHybrid, it includes 2 stages:
+    DptHybridNeck. A neck is a module that is normally used between the backbone and the head. It takes a list of
+    tensors as input and produces another list of tensors as output. For DptHybrid, it includes 2 stages:
 
     * DptHybridReassembleStage
     * DptHybridFeatureFusionStage.
@@ -851,7 +851,7 @@ class DptHybridNeck(nn.Module):
         # postprocessing
         self.reassemble_stage = DptHybridReassembleStage(config)
         self.convs = nn.ModuleList()
-        for channel in config.neck_hidden_sizes:
+        for i, channel in enumerate(config.neck_hidden_sizes):
             self.convs.append(nn.Conv2d(channel, config.fusion_hidden_size, kernel_size=3, padding=1, bias=False))
 
         # fusion

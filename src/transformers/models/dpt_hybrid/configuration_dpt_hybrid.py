@@ -16,8 +16,8 @@
 
 from ...configuration_utils import PretrainedConfig
 from ...utils import logging
-
 from ..bit import BitConfig
+
 
 logger = logging.get_logger(__name__)
 
@@ -26,12 +26,11 @@ DPT_HYBRID_PRETRAINED_CONFIG_ARCHIVE_MAP = {
 }
 
 
-
 class DptHybridConfig(PretrainedConfig):
     r"""
-    This is the configuration class to store the configuration of a [`DptHybridModel`]. It is used to instantiate an DptHybrid
-    model according to the specified arguments, defining the model architecture. Instantiating a configuration with the
-    defaults will yield a similar configuration to that of the DptHybrid
+    This is the configuration class to store the configuration of a [`DptHybridModel`]. It is used to instantiate an
+    DptHybrid model according to the specified arguments, defining the model architecture. Instantiating a
+    configuration with the defaults will yield a similar configuration to that of the DptHybrid
     [ybelkada/dpt-hybrid](https://huggingface.co/ybelkada/dpt-hybrid) architecture.
 
     Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the
@@ -128,7 +127,7 @@ class DptHybridConfig(PretrainedConfig):
         patch_size=16,
         num_channels=3,
         qkv_bias=True,
-        backbone_out_indices=[2, 5, 8, 11],
+        backbone_out_indices=[0, 1, 8, 11],
         readout_type="project",
         reassemble_factors=[4, 2, 1, 0.5],
         neck_hidden_sizes=[256, 512, 768, 768],

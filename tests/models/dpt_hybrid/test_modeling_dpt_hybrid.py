@@ -31,7 +31,12 @@ if is_torch_available():
     import torch
     from torch import nn
 
-    from transformers import MODEL_MAPPING, DptHybridForDepthEstimation, DptHybridForSemanticSegmentation, DptHybridModel
+    from transformers import (
+        MODEL_MAPPING,
+        DptHybridForDepthEstimation,
+        DptHybridForSemanticSegmentation,
+        DptHybridModel,
+    )
     from transformers.models.dpt_hybrid.modeling_dpt_hybrid import DPT_HYBRID_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
@@ -152,7 +157,9 @@ class DptHybridModelTest(ModelTesterMixin, unittest.TestCase):
     attention_mask and seq_length.
     """
 
-    all_model_classes = (DptHybridModel, DptHybridForDepthEstimation, DptHybridForSemanticSegmentation) if is_torch_available() else ()
+    all_model_classes = (
+        (DptHybridModel, DptHybridForDepthEstimation, DptHybridForSemanticSegmentation) if is_torch_available() else ()
+    )
 
     test_pruning = False
     test_resize_embeddings = False

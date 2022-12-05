@@ -24,7 +24,12 @@ from PIL import Image
 
 import requests
 from huggingface_hub import cached_download, hf_hub_url
-from transformers import DptHybridConfig, DPTFeatureExtractor, DptHybridForDepthEstimation, DptHybridForSemanticSegmentation
+from transformers import (
+    DPTFeatureExtractor,
+    DptHybridConfig,
+    DptHybridForDepthEstimation,
+    DptHybridForSemanticSegmentation,
+)
 from transformers.utils import logging
 
 
@@ -164,7 +169,9 @@ def read_in_q_k_v(state_dict, config):
         in_proj_weight = state_dict.pop(f"dpt_hybrid.encoder.layer.{i}.attn.qkv.weight")
         in_proj_bias = state_dict.pop(f"dpt_hybrid.encoder.layer.{i}.attn.qkv.bias")
         # next, add query, keys and values (in that order) to the state dict
-        state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.query.weight"] = in_proj_weight[: config.hidden_size, :]
+        state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.query.weight"] = in_proj_weight[
+            : config.hidden_size, :
+        ]
         state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.query.bias"] = in_proj_bias[: config.hidden_size]
         state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.key.weight"] = in_proj_weight[
             config.hidden_size : config.hidden_size * 2, :
@@ -175,7 +182,9 @@ def read_in_q_k_v(state_dict, config):
         state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.value.weight"] = in_proj_weight[
             -config.hidden_size :, :
         ]
-        state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.value.bias"] = in_proj_bias[-config.hidden_size :]
+        state_dict[f"dpt_hybrid.encoder.layer.{i}.attention.attention.value.bias"] = in_proj_bias[
+            -config.hidden_size :
+        ]
 
 
 # We will verify our results on an image of cute cats
@@ -205,7 +214,9 @@ def convert_dpt_hybrid_checkpoint(checkpoint_url, pytorch_dump_folder_path, push
     read_in_q_k_v(state_dict, config)
 
     # load HuggingFace model
-    model = DptHybridForSemanticSegmentation(config) if "ade" in checkpoint_url else DptHybridForDepthEstimation(config)
+    model = (
+        DptHybridForSemanticSegmentation(config) if "ade" in checkpoint_url else DptHybridForDepthEstimation(config)
+    )
     model.load_state_dict(state_dict)
     model.eval()
 
@@ -280,4 +291,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    convert_dpt_hybrid_checkpoint(args.checkpoint_url, args.pytorch_dump_folder_path, args.push_to_hub, args.model_name)
+    convert_dpt_hybrid_checkpoint(
+        args.checkpoint_url, args.pytorch_dump_folder_path, args.push_to_hub, args.model_name
+    )
