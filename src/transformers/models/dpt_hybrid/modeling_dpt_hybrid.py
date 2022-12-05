@@ -490,7 +490,7 @@ class DptHybridReassembleStage(nn.Module):
                 #         nn.Sequential(nn.Linear(2 * config.hidden_size, config.hidden_size), ACT2FN[config.hidden_act])
                 #     )
 
-    def forward(self, hidden_states: List[torch.Tensor]) -> List[torch.Tensor]:
+    def forward(self, hidden_states: List[torch.Tensor], ignore_index=[]) -> List[torch.Tensor]:
         """
         Args:
             hidden_states (`List[torch.FloatTensor]`, each of shape `(batch_size, sequence_length + 1, hidden_size)`):
@@ -499,27 +499,28 @@ class DptHybridReassembleStage(nn.Module):
         out = []
 
         for i, hidden_state in enumerate(hidden_states):
-            # reshape to (B, C, H, W)
-            hidden_state, cls_token = hidden_state[:, 1:], hidden_state[:, 0]
-            batch_size, sequence_length, num_channels = hidden_state.shape
-            size = int(math.sqrt(sequence_length))
-            hidden_state = hidden_state.reshape(batch_size, size, size, num_channels)
-            hidden_state = hidden_state.permute(0, 3, 1, 2).contiguous()
+            if i not in ignore_index:
+                # reshape to (B, C, H, W)
+                hidden_state, cls_token = hidden_state[:, 1:], hidden_state[:, 0]
+                batch_size, sequence_length, num_channels = hidden_state.shape
+                size = int(math.sqrt(sequence_length))
+                hidden_state = hidden_state.reshape(batch_size, size, size, num_channels)
+                hidden_state = hidden_state.permute(0, 3, 1, 2).contiguous()
 
-            feature_shape = hidden_state.shape
-            if self.config.readout_type == "project":
-                # reshape to (B, H*W, C)
-                hidden_state = hidden_state.flatten(2).permute((0, 2, 1))
-                readout = cls_token.unsqueeze(1).expand_as(hidden_state)
-                # concatenate the readout token to the hidden states and project
-                if self.readout_projects[i][0].__class__ is not nn.Identity:
-                    hidden_state = self.readout_projects[i](torch.cat((hidden_state, readout), -1))
-                # reshape back to (B, C, H, W)
-                hidden_state = hidden_state.permute(0, 2, 1).reshape(feature_shape)
-            elif self.config.readout_type == "add":
-                hidden_state = hidden_state.flatten(2) + cls_token.unsqueeze(-1)
-                hidden_state = hidden_state.reshape(feature_shape)
-            hidden_state = self.layers[i](hidden_state)
+                feature_shape = hidden_state.shape
+                if self.config.readout_type == "project":
+                    # reshape to (B, H*W, C)
+                    hidden_state = hidden_state.flatten(2).permute((0, 2, 1))
+                    readout = cls_token.unsqueeze(1).expand_as(hidden_state)
+                    # concatenate the readout token to the hidden states and project
+                    if self.readout_projects[i][0].__class__ is not nn.Identity:
+                        hidden_state = self.readout_projects[i](torch.cat((hidden_state, readout), -1))
+                    # reshape back to (B, C, H, W)
+                    hidden_state = hidden_state.permute(0, 2, 1).reshape(feature_shape)
+                elif self.config.readout_type == "add":
+                    hidden_state = hidden_state.flatten(2) + cls_token.unsqueeze(-1)
+                    hidden_state = hidden_state.reshape(feature_shape)
+                hidden_state = self.layers[i](hidden_state)
             out.append(hidden_state)
 
         return out
@@ -865,7 +866,7 @@ class DptHybridNeck(nn.Module):
             raise ValueError("The number of hidden states should be equal to the number of neck hidden sizes.")
 
         # postprocess hidden states
-        features = self.reassemble_stage(hidden_states)
+        features = self.reassemble_stage(hidden_states, ignore_index = [0, 1])
 
         features = [self.convs[i](feature) for i, feature in enumerate(features)]
 
@@ -920,6 +921,7 @@ class DptHybridForDepthEstimation(DptHybridPreTrainedModel):
         super().__init__(config)
 
         self.dpt_hybrid = DptHybridModel(config, add_pooling_layer=False)
+        self.register_forward_hook_backbone()
 
         # Neck
         self.neck = DptHybridNeck(config)
@@ -929,6 +931,17 @@ class DptHybridForDepthEstimation(DptHybridPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
+    
+    def register_forward_hook_backbone(self):
+        self.backbone_activations = {}
+        
+        def set_activation_hook(name):
+            def hook(module, input, output):
+                self.backbone_activations[name] = output
+            return hook
+        
+        self.dpt_hybrid.embeddings.backbone.bit.encoder.stages[0].register_forward_hook(set_activation_hook('0'))
+        self.dpt_hybrid.embeddings.backbone.bit.encoder.stages[1].register_forward_hook(set_activation_hook('1'))
 
     @add_start_docstrings_to_model_forward(DPT_HYBRID_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=DepthEstimatorOutput, config_class=_CONFIG_FOR_DOC)
@@ -998,9 +1011,15 @@ class DptHybridForDepthEstimation(DptHybridPreTrainedModel):
 
         # only keep certain features based on config.backbone_out_indices
         # note that the hidden_states also include the initial embeddings
-        hidden_states = [
-            feature for idx, feature in enumerate(hidden_states[1:]) if idx in self.config.backbone_out_indices
-        ]
+        if hasattr(self, "backbone_activations"):
+            backbone_hidden_states = [self.backbone_activations["0"], self.backbone_activations["1"]]
+            backbone_hidden_states.extend(feature for idx, feature in enumerate(hidden_states[1:]) if idx in self.config.backbone_out_indices[2:])
+            
+            hidden_states = backbone_hidden_states
+        else:
+            hidden_states = [
+                feature for idx, feature in enumerate(hidden_states[1:]) if idx in self.config.backbone_out_indices
+            ]
 
         hidden_states = self.neck(hidden_states)
 
