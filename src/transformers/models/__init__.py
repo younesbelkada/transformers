@@ -61,6 +61,8 @@ from . import (
     distilbert,
     dit,
     donut,
+    pix2struct,
+    pix2struct,
     dpr,
     dpt,
     electra,

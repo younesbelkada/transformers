@@ -221,6 +221,8 @@ _import_structure = {
     "models.distilbert": ["DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DistilBertConfig", "DistilBertTokenizer"],
     "models.dit": [],
     "models.donut": ["DONUT_SWIN_PRETRAINED_CONFIG_ARCHIVE_MAP", "DonutProcessor", "DonutSwinConfig"],
+    "models.pix2struct": ["PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DonutProcessor", "Pix2StructConfig"],
+    "models.pix2struct": ["PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DonutProcessor", "Pix2StructConfig"],
     "models.dpr": [
         "DPR_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "DPRConfig",
@@ -1297,6 +1299,20 @@ else:
             "DONUT_SWIN_PRETRAINED_MODEL_ARCHIVE_LIST",
             "DonutSwinModel",
             "DonutSwinPreTrainedModel",
+        ]
+    )
+    _import_structure["models.pix2struct"].extend(
+        [
+            "PIX2STRUCT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "Pix2StructModel",
+            "Pix2StructPreTrainedModel",
+        ]
+    )
+    _import_structure["models.pix2struct"].extend(
+        [
+            "PIX2STRUCT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "Pix2StructModel",
+            "Pix2StructPreTrainedModel",
         ]
     )
     _import_structure["models.dpr"].extend(
@@ -3490,6 +3506,8 @@ if TYPE_CHECKING:
     from .models.dinat import DINAT_PRETRAINED_CONFIG_ARCHIVE_MAP, DinatConfig
     from .models.distilbert import DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, DistilBertConfig, DistilBertTokenizer
     from .models.donut import DONUT_SWIN_PRETRAINED_CONFIG_ARCHIVE_MAP, DonutProcessor, DonutSwinConfig
+    from .models.pix2struct import PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP, DonutProcessor, Pix2StructConfig
+    from .models.pix2struct import PIX2STRUCT_PRETRAINED_CONFIG_ARCHIVE_MAP, DonutProcessor, Pix2StructConfig
     from .models.dpr import (
         DPR_PRETRAINED_CONFIG_ARCHIVE_MAP,
         DPRConfig,
@@ -4406,6 +4424,8 @@ if TYPE_CHECKING:
             DistilBertPreTrainedModel,
         )
         from .models.donut import DONUT_SWIN_PRETRAINED_MODEL_ARCHIVE_LIST, DonutSwinModel, DonutSwinPreTrainedModel
+        from .models.pix2struct import PIX2STRUCT_PRETRAINED_MODEL_ARCHIVE_LIST, Pix2StructModel, Pix2StructPreTrainedModel
+        from .models.pix2struct import PIX2STRUCT_PRETRAINED_MODEL_ARCHIVE_LIST, Pix2StructModel, Pix2StructPreTrainedModel
         from .models.dpr import (
             DPR_CONTEXT_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,
             DPR_QUESTION_ENCODER_PRETRAINED_MODEL_ARCHIVE_LIST,

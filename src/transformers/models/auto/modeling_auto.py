@@ -65,6 +65,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("dinat", "DinatModel"),
         ("distilbert", "DistilBertModel"),
         ("donut-swin", "DonutSwinModel"),
+        ("pix2struct", "Pix2StructModel"),
+        ("pix2struct", "Pix2StructModel"),
         ("dpr", "DPRQuestionEncoder"),
         ("dpt", "DPTModel"),
         ("electra", "ElectraModel"),
