@@ -188,7 +188,7 @@ _import_structure = {
         "BLIP_2_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "Blip2Config",
         "Blip2Processor",
-        "Blip2TextConfig",
+        "Blip2QFormerConfig",
         "Blip2VisionConfig",
     ],
     "models.bloom": ["BLOOM_PRETRAINED_CONFIG_ARCHIVE_MAP", "BloomConfig"],
@@ -1176,11 +1176,9 @@ else:
         [
             "BLIP_2_PRETRAINED_MODEL_ARCHIVE_LIST",
             "Blip2ForConditionalGeneration",
-            "Blip2ForImageTextRetrieval",
-            "Blip2ForQuestionAnswering",
             "Blip2Model",
             "Blip2PreTrainedModel",
-            "Blip2TextModel",
+            "Blip2QFormerModel",
             "Blip2VisionModel",
         ]
     )
@@ -3682,7 +3680,7 @@ if TYPE_CHECKING:
         BLIP_2_PRETRAINED_CONFIG_ARCHIVE_MAP,
         Blip2Config,
         Blip2Processor,
-        Blip2TextConfig,
+        Blip2QFormerConfig,
         Blip2VisionConfig,
     )
     from .models.bloom import BLOOM_PRETRAINED_CONFIG_ARCHIVE_MAP, BloomConfig
@@ -4545,11 +4543,9 @@ if TYPE_CHECKING:
         from .models.blip_2 import (
             BLIP_2_PRETRAINED_MODEL_ARCHIVE_LIST,
             Blip2ForConditionalGeneration,
-            Blip2ForImageTextRetrieval,
-            Blip2ForQuestionAnswering,
             Blip2Model,
             Blip2PreTrainedModel,
-            Blip2TextModel,
+            Blip2QFormerModel,
             Blip2VisionModel,
         )
         from .models.bloom import (
