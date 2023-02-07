@@ -142,14 +142,14 @@ class Blip2Attention(nn.Module):
         self.qkv = nn.Linear(self.embed_dim, 3 * self.embed_dim, bias=False)
 
         if config.qkv_bias:
-            q_bias = nn.Parameter(torch.zeros(self.embed_dim))
-            v_bias = nn.Parameter(torch.zeros(self.embed_dim))
+            self.q_bias = nn.Parameter(torch.zeros(self.embed_dim))
+            self.v_bias = nn.Parameter(torch.zeros(self.embed_dim))
         else:
-            q_bias = None
-            v_bias = None
+            self.q_bias = None
+            self.v_bias = None
 
-        if q_bias is not None:
-            qkv_bias = torch.cat((q_bias, torch.zeros_like(v_bias, requires_grad=False), v_bias))
+        if self.q_bias is not None:
+            qkv_bias = torch.cat((self.q_bias, torch.zeros_like(self.v_bias, requires_grad=False), self.v_bias))
             self.qkv.bias = nn.Parameter(qkv_bias)
 
         self.projection = nn.Linear(self.embed_dim, self.embed_dim)
@@ -284,8 +284,9 @@ class Blip2PreTrainedModel(PreTrainedModel):
         r"position_ids",
         r"language_model.encoder.embed_tokens.weight",
         r"language_model.decoder.embed_tokens.weight",
+        # r".*.qkv.bias",
     ]
-    _no_split_modules = ["Blip2Attention"]
+    _no_split_modules = ["Blip2Attention", "OPTDecoderLayer"]
 
     def _init_weights(self, module):
         """Initialize the weights"""
@@ -1433,7 +1434,7 @@ class Blip2ForConditionalGeneration(Blip2PreTrainedModel):
             )
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
-        attention_mask = torch.cat([language_attention_mask, attention_mask], dim=1)
+        attention_mask = torch.cat([language_attention_mask, attention_mask.to(language_attention_mask.device)], dim=1)
 
         # concatenate query embeddings with prompt embeddings
         inputs_embeds = self.language_model.get_input_embeddings()(input_ids)
