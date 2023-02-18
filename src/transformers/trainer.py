@@ -369,7 +369,7 @@ class Trainer:
             self.is_model_parallel = False
 
         # At this stage the model is already loaded
-        if getattr(model, "is_loaded_in_8bit", False):
+        if getattr(model, "is_quantized", False):
             if getattr(model, "_is_int8_training_enabled", False):
                 logger.info(
                     "The model is loaded in 8-bit precision. To train this model you need to add additional modules"
@@ -472,7 +472,7 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
 
-        if self.place_model_on_device and not getattr(model, "is_loaded_in_8bit", False):
+        if self.place_model_on_device and not getattr(model, "is_quantized", False):
             self._move_model_to_device(model, args.device)
 
         # Force n_gpu to 1 to avoid DataParallel as MP will manage the GPUs

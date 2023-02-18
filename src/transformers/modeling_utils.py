@@ -1660,7 +1660,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
         """
         # Checks if the model has been loaded in 8-bit
-        if getattr(self, "is_loaded_in_8bit", False):
+        if getattr(self, "is_quantized", False):
             warnings.warn(
                 "You are calling `save_pretrained` to a 8-bit converted model you may likely encounter unexepected"
                 " behaviors. ",
@@ -1804,7 +1804,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
     def to(self, *args, **kwargs):
         # Checks if the model has been loaded in 8-bit
-        if getattr(self, "is_loaded_in_8bit", False):
+        if getattr(self, "is_quantized", False):
             raise ValueError(
                 "`.to` is not supported for `8-bit` models. Please use the model as it is, since the"
                 " model has already been set to the correct devices and casted to the correct `dtype`."
@@ -1814,7 +1814,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
     def half(self, *args):
         # Checks if the model has been loaded in 8-bit
-        if getattr(self, "is_loaded_in_8bit", False):
+        if getattr(self, "is_quantized", False):
             raise ValueError(
                 "`.half()` is not supported for `8-bit` models. Please use the model as it is, since the"
                 " model has already been casted to the correct `dtype`."
@@ -1824,7 +1824,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
     def float(self, *args):
         # Checks if the model has been loaded in 8-bit
-        if getattr(self, "is_loaded_in_8bit", False):
+        if getattr(self, "is_quantized", False):
             raise ValueError(
                 "`.float()` is not supported for `8-bit` models. Please use the model as it is, since the"
                 " model has already been casted to the correct `dtype`."
@@ -2132,6 +2132,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     "You can't pass `load_in_8bit` or any other `BitsAndBytesConfig` argument as a kwarg when passing "
                     "`quantization_config` argument at the same time."
                 )
+
+        load_in_8bit = quantization_config.is_quantizable()
 
         if load_in_8bit:
             if not (is_accelerate_available() and is_bitsandbytes_available()):
@@ -2535,7 +2537,11 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 modules_to_not_convert.extend(keys_on_cpu)
 
             model = replace_8bit_linear(
-                model, threshold=load_in_8bit_threshold, modules_to_not_convert=modules_to_not_convert
+                model,
+                threshold=load_in_8bit_threshold,
+                modules_to_not_convert=modules_to_not_convert,
+                current_key_name=None,
+                quantization_config=quantization_config,
             )
 
             # training in 8-bit is only available in 0.37.0+
@@ -2564,10 +2570,18 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 )
             # Make sure tied weights are tied before creating the device map.
             model.tie_weights()
+
+            if not load_in_8bit:
+                device_map_dtype = torch_dtype
+            elif quantization_config.quantization_method() == "llm_int8":
+                device_map_dtype = torch.int8
+            else:
+                device_map_dtype = "int8"  # TODO find a way here?
+
             device_map = infer_auto_device_map(
                 model,
                 no_split_module_classes=no_split_modules,
-                dtype=torch_dtype if not load_in_8bit else torch.int8,
+                dtype=device_map_dtype,
                 max_memory=max_memory,
             )
 
@@ -2647,7 +2661,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 keep_in_fp32_modules=keep_in_fp32_modules,
             )
 
-        model.is_loaded_in_8bit = load_in_8bit
+        model.is_quantized = load_in_8bit
 
         # make sure token embedding weights are still tied if needed
         model.tie_weights()

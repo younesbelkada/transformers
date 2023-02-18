@@ -31,6 +31,9 @@ class BitsAndBytesConfig:
     Args:
         load_in_8bit (`bool`, *optional*, defaults to `False`):
             This flag is used to enable 8-bit quantization with LLM.int8().
+        load_in_4bit (`bool`, *optional*, defaults to `False`):
+            This flag is used to enable 4-bit quantization by replacing the Linear layers with FP4 layers from
+            `bitsandbytes`.
         llm_int8_threshold (`float`, *optional*, defaults to 6):
             This corresponds to the outlier threshold for outlier detection as described in `LLM.int8() : 8-bit Matrix
             Multiplication for Transformers at Scale` paper: https://arxiv.org/abs/2208.07339 Any hidden states value
@@ -54,11 +57,13 @@ class BitsAndBytesConfig:
     def __init__(
         self,
         load_in_8bit=False,
+        load_in_4bit=False,
         llm_int8_threshold=6.0,
         llm_int8_skip_modules=None,
         llm_int8_enable_fp32_cpu_offload=False,
     ):
         self.load_in_8bit = load_in_8bit
+        self.load_in_4bit = load_in_4bit
         self.llm_int8_threshold = llm_int8_threshold
         self.llm_int8_skip_modules = llm_int8_skip_modules
         self.llm_int8_enable_fp32_cpu_offload = llm_int8_enable_fp32_cpu_offload
@@ -77,6 +82,24 @@ class BitsAndBytesConfig:
 
         if not isinstance(self.llm_int8_enable_fp32_cpu_offload, bool):
             raise ValueError("llm_int8_enable_fp32_cpu_offload must be a boolean")
+
+    def is_quantizable(self):
+        r"""
+        Returns `True` if the model is quantizable, `False` otherwise.
+        """
+        return self.load_in_8bit or self.load_in_4bit
+
+    def quantization_method(self):
+        r"""
+        This method returns the quantization method used for the model. If the model is not quantizable, it returns
+        `None`.
+        """
+        if self.load_in_8bit:
+            return "llm_int8"
+        elif self.load_in_4bit:
+            return "fp4"
+        else:
+            return None
 
     @classmethod
     def from_dict(cls, config_dict, return_unused_kwargs, **kwargs):

@@ -52,8 +52,11 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
         has_fp16_weights = None
     else:
         has_fp16_weights = getattr(module._parameters[tensor_name], "has_fp16_weights", None)
+        if has_fp16_weights is None:
+            has_fp16_weights = getattr(module._parameters[tensor_name], "quant_state", None)
+    is_fp4 = isinstance(module._parameters[tensor_name], bnb.nn.FP4Params)
 
-    if has_fp16_weights is not None:
+    if has_fp16_weights is not None or is_fp4:
         param = module._parameters[tensor_name]
         if param.device.type != "cuda":
             if value is None:
@@ -67,7 +70,12 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
                     )
             else:
                 new_value = torch.tensor(value, device="cpu")
-            new_value = bnb.nn.Int8Params(new_value, requires_grad=False, has_fp16_weights=has_fp16_weights).to(device)
+            if has_fp16_weights is not None:
+                new_value = bnb.nn.Int8Params(new_value, requires_grad=False, has_fp16_weights=has_fp16_weights).to(
+                    device
+                )
+            elif is_fp4:
+                new_value = bnb.nn.FP4Params(new_value, requires_grad=False).to(device)
             module._parameters[tensor_name] = new_value
     else:
         if value is None:
@@ -84,7 +92,9 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
             module._parameters[tensor_name] = new_value
 
 
-def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", current_key_name=None):
+def replace_8bit_linear(
+    model, threshold=6.0, modules_to_not_convert="lm_head", current_key_name=None, quantization_config=None
+):
     """
     A helper function to replace all `torch.nn.Linear` modules by `bnb.nn.Linear8bit` modules from the `bitsandbytes`
     library. This will enable running your models using mixed int8 precision as described by the paper `GPT3.int8():
@@ -119,19 +129,32 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", 
         current_key_name.append(name)
 
         if len(list(module.children())) > 0:
-            replace_8bit_linear(module, threshold, modules_to_not_convert, current_key_name)
+            replace_8bit_linear(
+                module,
+                threshold,
+                modules_to_not_convert,
+                current_key_name,
+                quantization_config,
+            )
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
             # Check if the current key is not in the `modules_to_not_convert`
             if not any(key in ".".join(current_key_name) for key in modules_to_not_convert):
                 with init_empty_weights():
-                    model._modules[name] = bnb.nn.Linear8bitLt(
-                        module.in_features,
-                        module.out_features,
-                        module.bias is not None,
-                        has_fp16_weights=False,
-                        threshold=threshold,
-                    )
+                    if quantization_config.quantization_method() == "llm_int8":
+                        model._modules[name] = bnb.nn.Linear8bitLt(
+                            module.in_features,
+                            module.out_features,
+                            module.bias is not None,
+                            has_fp16_weights=False,
+                            threshold=threshold,
+                        )
+                    else:
+                        model._modules[name] = bnb.nn.LinearFP4(
+                            module.in_features,
+                            module.out_features,
+                            module.bias is not None,
+                        )
         # Remove the last key for recursion
         current_key_name.pop(-1)
     return model
