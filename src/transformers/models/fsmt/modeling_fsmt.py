@@ -753,9 +753,6 @@ class FSMTDecoder(nn.Module):
         elif input_ids is not None:
             # embed positions
             positions = self.embed_positions(input_ids)
-            if use_cache:
-                input_ids = input_ids[:, -1:]
-                positions = positions[:, -1:]  # happens after we embed them
             x = self.embed_tokens(input_ids) * self.embed_scale
         elif inputs_embeds is not None:
             # We assume zeros hidden states correspond to padding tokens
