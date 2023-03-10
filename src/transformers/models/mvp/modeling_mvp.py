@@ -137,9 +137,11 @@ class MvpLearnedPositionalEmbedding(nn.Embedding):
         """`input_ids' shape is expected to be [bsz x seqlen]."""
 
         bsz, seq_len = input_ids.shape[:2]
-        positions = torch.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=torch.long, device=self.weight.device
-        ).expand(bsz, -1)
+        positions = (
+            torch.arange(past_key_values_length, past_key_values_length + seq_len, dtype=torch.long)
+            .expand(bsz, -1)
+            .to(input_ids.device)
+        )
 
         return super().forward(positions + self.offset)
 
