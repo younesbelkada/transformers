@@ -122,15 +122,13 @@ class MBartLearnedPositionalEmbedding(nn.Embedding):
         self.offset = 2
         super().__init__(num_embeddings + self.offset, embedding_dim)
 
+        self.register_buffer("position_ids", torch.arange(0, 2048, dtype=torch.long))
+
     def forward(self, input_ids: torch.Tensor, past_key_values_length: int = 0):
         """`input_ids' shape is expected to be [bsz x seqlen]."""
 
         bsz, seq_len = input_ids.shape[:2]
-        positions = (
-            torch.arange(past_key_values_length, past_key_values_length + seq_len, dtype=torch.long)
-            .expand(bsz, -1)
-            .to(input_ids.device)
-        )
+        positions = self.position_ids[past_key_values_length : seq_len + past_key_values_length].expand(bsz, -1)
 
         return super().forward(positions + self.offset)
 
