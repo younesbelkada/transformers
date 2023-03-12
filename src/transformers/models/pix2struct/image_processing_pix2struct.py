@@ -19,8 +19,16 @@ from typing import Dict, Optional, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature
-from ...image_transforms import convert_to_rgb, normalize
-from ...image_utils import ChannelDimension, ImageInput, is_batched, to_numpy_array, valid_images
+from ...image_transforms import convert_to_rgb, normalize, resize
+from ...image_utils import (
+    ChannelDimension,
+    ImageInput,
+    PILImageResampling,
+    get_image_size,
+    is_batched,
+    to_numpy_array,
+    valid_images,
+)
 from ...utils import TensorType, is_torch_available, is_vision_available, logging
 from ...utils.import_utils import requires_backends
 
@@ -89,6 +97,27 @@ class Pix2StructImageProcessor(BaseImageProcessor):
         )
         return patches.unsqueeze(0)
 
+    def resize(
+        self,
+        image: np.ndarray,
+        patch_size: Dict[str, int],
+        max_patches: int,
+        resample: PILImageResampling = PILImageResampling.BILINEAR,
+        data_format: Optional[Union[ChannelDimension, str]] = None,
+        **kwargs,
+    ) -> np.ndarray:
+        patch_height, patch_width = patch_size
+        image_height, image_width = get_image_size(image)
+
+        # maximize scale s.t.
+        scale = math.sqrt(max_patches * (patch_height / image_height) * (patch_width / image_width))
+        num_feasible_rows = max(min(math.floor(scale * image_height / patch_height), max_patches), 1)
+        num_feasible_cols = max(min(math.floor(scale * image_width / patch_width), max_patches), 1)
+        resized_height = max(num_feasible_rows * patch_height, 1)
+        resized_width = max(num_feasible_cols * patch_width, 1)
+
+        return resize(image, (resized_height, resized_width), resample=resample, data_format=data_format)
+
     def extract_flattened_patches(self, image: np.ndarray, max_patches: int, **kwargs) -> np.ndarray:
         """
         Extract flattened patches from an image.
@@ -108,24 +137,6 @@ class Pix2StructImageProcessor(BaseImageProcessor):
                 image = torch.from_numpy(image)
 
         patch_height, patch_width = self.patch_size
-        _, image_height, image_width = image.shape
-        image_height = float(image_height)
-        image_width = float(image_width)
-
-        # maximize scale s.t.
-        scale = math.sqrt(max_patches * (patch_height / image_height) * (patch_width / image_width))
-        num_feasible_rows = max(min(math.floor(scale * image_height / patch_height), max_patches), 1)
-        num_feasible_cols = max(min(math.floor(scale * image_width / patch_width), max_patches), 1)
-        resized_height = max(num_feasible_rows * patch_height, 1)
-        resized_width = max(num_feasible_cols * patch_width, 1)
-
-        image = torch.nn.functional.interpolate(
-            image.unsqueeze(0),
-            size=(resized_height, resized_width),
-            mode="bilinear",
-            align_corners=False,
-            antialias=True,
-        ).squeeze(0)
 
         # [1, rows, columns, patch_height * patch_width * image_channels]
         patches = self.torch_extract_patches(image, patch_height, patch_width)
@@ -250,6 +261,8 @@ class Pix2StructImageProcessor(BaseImageProcessor):
 
         # All transformations expect numpy arrays.
         images = [to_numpy_array(image) for image in images]
+
+        images = [self.resize(image=image, patch_size=self.patch_size, max_patches=max_patches) for image in images]
 
         if do_normalize:
             images = [self.normalize(image=image, data_format=data_format) for image in images]
