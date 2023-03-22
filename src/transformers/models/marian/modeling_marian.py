@@ -485,6 +485,7 @@ class MarianPreTrainedModel(PreTrainedModel):
     config_class = MarianConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
+    _no_split_modules = ["MarianDecoderLayer", "MarianAttention", "MarianEncoderLayer"]
 
     def _init_weights(self, module: Union[nn.Linear, nn.Embedding, MarianSinusoidalPositionalEmbedding]):
         std = self.config.init_std
@@ -991,7 +992,7 @@ class MarianDecoder(MarianPreTrainedModel):
         # embed positions
         positions = self.embed_positions(input_shape, past_key_values_length)
 
-        hidden_states = inputs_embeds + positions
+        hidden_states = inputs_embeds + positions.to(inputs_embeds.device)
 
         hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
