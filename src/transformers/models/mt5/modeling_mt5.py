@@ -852,7 +852,7 @@ class MT5Stack(MT5PreTrainedModel):
         self.is_decoder = config.is_decoder
 
         self.block = nn.ModuleList(
-            [MT5Block(config, has_relative_attention_bias=bool(i == 0)) for i in range(config.num_layers)]
+            [MT5Block(config, has_relative_attention_bias=(bool(i == 0) or config.has_separate_relative_pos_bias)) for i in range(config.num_layers)]
         )
         self.final_layer_norm = MT5LayerNorm(config.d_model, eps=config.layer_norm_epsilon)
         self.dropout = nn.Dropout(config.dropout_rate)
@@ -1314,12 +1314,12 @@ class MT5Model(MT5PreTrainedModel):
     config_class = MT5Config
     _keys_to_ignore_on_load_missing = [
         r"encoder.embed_tokens.weight",
-        r"decoder.embed_tokens.weight",
-        r"decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight",
+        #r"decoder.embed_tokens.weight",
+        #r"decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight",
     ]
     _keys_to_ignore_on_save = [
         r"encoder.embed_tokens.weight",
-        r"decoder.embed_tokens.weight",
+        # r"decoder.embed_tokens.weight",
     ]
     _keys_to_ignore_on_load_unexpected = [
         r"decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight",

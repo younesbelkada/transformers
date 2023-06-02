@@ -91,6 +91,7 @@ class MT5Config(PretrainedConfig):
         pad_token_id=0,
         eos_token_id=1,
         decoder_start_token_id=0,
+        has_separate_relative_pos_bias=False,
         **kwargs,
     ):
         super().__init__(
@@ -118,6 +119,7 @@ class MT5Config(PretrainedConfig):
         self.initializer_factor = initializer_factor
         self.feed_forward_proj = feed_forward_proj
         self.use_cache = use_cache
+        self.has_separate_relative_pos_bias = has_separate_relative_pos_bias
 
         act_info = self.feed_forward_proj.split("-")
         self.dense_act_fn = act_info[-1]
