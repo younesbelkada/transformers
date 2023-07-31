@@ -1800,7 +1800,12 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # We're going to remove aliases before saving
             ptrs = collections.defaultdict(list)
             for name, tensor in state_dict.items():
-                ptrs[id_tensor_storage(tensor)].append(name)
+                # when bnb serialization is used the weights in the state dict can be strings
+                # check: https://github.com/huggingface/transformers/pull/24416 for more details
+                if isinstance(tensor, str):
+                    continue
+                else:
+                    ptrs[id_tensor_storage(tensor)].append(name)
 
             # These are all the pointers of shared tensors.
             shared_ptrs = {ptr: names for ptr, names in ptrs.items() if len(names) > 1}
