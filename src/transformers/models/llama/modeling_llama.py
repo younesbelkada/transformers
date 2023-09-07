@@ -906,8 +906,6 @@ class LlamaModel(LlamaPreTrainedModel):
         next_decoder_cache = () if use_cache else None
 
         for idx, decoder_layer in enumerate(self.layers):
-            if idx > 12:
-                continue
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
