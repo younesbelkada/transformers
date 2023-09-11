@@ -330,6 +330,7 @@ class LlamaAttention(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
+        padding_mask: Optional[torch.LongTensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         bsz, q_len, _ = hidden_states.size()
 
@@ -473,6 +474,7 @@ class LlamaFlashAttention(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
+        padding_mask: Optional[torch.LongTensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         # LlamaFlashAttention attention does not support output_attentions
         output_attentions = False
@@ -514,10 +516,8 @@ class LlamaFlashAttention(nn.Module):
         # when training.
         dropout_rate = 0.0  # if not self.training else self.attn_dropout
 
-        padding_mask = _convert_to_padding_mask(attention_mask)
-
         # contains at least one padding token
-        if padding_mask.sum().item() != bsz * kv_seq_len:
+        if padding_mask is not None:
             key_states, _, current_key_length, key_max_seqlen = unpad_input(key_states, padding_mask)
             value_states, _, _, _ = unpad_input(value_states, padding_mask)
 
@@ -574,6 +574,7 @@ class LlamaDecoderLayer(nn.Module):
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
+        padding_mask: Optional[torch.LongTensor] = None
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
         Args:
@@ -601,6 +602,7 @@ class LlamaDecoderLayer(nn.Module):
             past_key_value=past_key_value,
             output_attentions=output_attentions,
             use_cache=use_cache,
+            padding_mask=padding_mask
         )
         hidden_states = residual + hidden_states
 
@@ -839,6 +841,13 @@ class LlamaModel(LlamaPreTrainedModel):
             attention_mask = torch.ones(
                 (batch_size, seq_length_with_past), dtype=torch.bool, device=inputs_embeds.device
             )
+            padding_mask = None
+        else:
+            if 0 in attention_mask:
+                padding_mask = attention_mask
+            else:
+                padding_mask = None        
+
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
         )
@@ -877,6 +886,7 @@ class LlamaModel(LlamaPreTrainedModel):
                     hidden_states,
                     attention_mask,
                     position_ids,
+                    padding_mask
                 )
             else:
                 layer_outputs = decoder_layer(
@@ -886,6 +896,7 @@ class LlamaModel(LlamaPreTrainedModel):
                     past_key_value=past_key_value,
                     output_attentions=output_attentions,
                     use_cache=use_cache,
+                    padding_mask=padding_mask
                 )
 
             hidden_states = layer_outputs[0]
