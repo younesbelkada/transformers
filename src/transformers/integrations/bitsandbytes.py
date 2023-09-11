@@ -4,11 +4,13 @@ from copy import deepcopy
 
 from packaging import version
 
-from ..utils import is_accelerate_available, is_bitsandbytes_available, logging
+from ..utils import is_accelerate_available, is_bitsandbytes_available, is_torch_available, logging
 
 
 if is_bitsandbytes_available():
     import bitsandbytes as bnb
+
+if is_torch_available():
     import torch
     import torch.nn as nn
 
