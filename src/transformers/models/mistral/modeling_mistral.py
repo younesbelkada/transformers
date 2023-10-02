@@ -327,6 +327,19 @@ class MistralFlashAttention2(MistralAttention):
     untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
     flash attention and deal with padding tokens in case the input contains any of them.
     """
+    def __init__(self, config):
+        super().__init__(config)
+
+        if _is_flash_using_sliding_windows:
+            self.register_buffer(
+                "past_key_values",
+                torch.empty(
+                    (1, 2, self.num_heads // self.num_key_value_groups, self.config.sliding_window + 1, self.head_dim)
+                ),
+                persistent=False
+            )
+            self.already_forward = False
+
 
     def forward(
         self,
@@ -339,6 +352,9 @@ class MistralFlashAttention2(MistralAttention):
         padding_mask: Optional[torch.LongTensor] = None,
     ):
         bsz, q_len, _ = hidden_states.size()
+
+        if _is_flash_using_sliding_windows and bsz > 1 and bsz > self.past_key_values.shape[0]:
+            self.past_key_values = self.past_key_values.repeat(bsz, 1, 1, 1)
 
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(hidden_states)
@@ -364,22 +380,27 @@ class MistralFlashAttention2(MistralAttention):
             if use_sliding_windows and kv_seq_len > self.config.sliding_window:
                 slicing_tokens = (kv_seq_len - self.config.sliding_window) + 1
 
-                past_key = past_key_value[0]
-                past_value = past_key_value[1]
-
-                past_key = past_key[:, :, slicing_tokens:, :].contiguous()            
-                past_value = past_value[:, :, slicing_tokens:, :].contiguous()  
-
-                past_key_value = (past_key, past_value)
-
                 if padding_mask is not None:
                     padding_mask = padding_mask[:, slicing_tokens:]
                     padding_mask = torch.cat([padding_mask, torch.ones_like(padding_mask[:, -1:])], dim=-1)
 
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
-        past_key_value = (key_states, value_states) if use_cache else None
+            if not _is_flash_using_sliding_windows:
+                key_states = torch.cat([past_key_value[0], key_states], dim=2)
+                value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            else:
+                shifted_past_key_values = self.past_key_values[:, :, :, 1:, :]
+
+                shifted_past_key_values[:, 0, :, -1, :] = key_states[:, :, -1, :]
+                shifted_past_key_values[:, 1, :, -1, :] = value_states[:, :, -1, :]
+
+                self.past_key_values[:, :, :, :self.config.sliding_window, :] = shifted_past_key_values
+
+                key_states = self.past_key_values[:, 0, :, :self.config.sliding_window, :] 
+                value_states = self.past_key_values[:, 1, :, :self.config.sliding_window, :]
+
+        if not _is_flash_using_sliding_windows:
+            past_key_value = (key_states, value_states) if use_cache else None
 
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -419,6 +440,19 @@ class MistralFlashAttention2(MistralAttention):
 
         if not output_attentions:
             attn_weights = None
+
+        if _is_flash_using_sliding_windows:
+            if not self.already_forward:
+                self.already_forward = True
+
+                slicing_tokens = (kv_seq_len - self.config.sliding_window)
+
+                kv_num_heads = self.num_heads // self.num_key_value_groups
+
+                self.past_key_values[:, 0, :, 1:, :] = key_states[:, slicing_tokens:, :kv_num_heads, :].transpose(1, 2)
+                self.past_key_values[:, 1, :, 1:, :] = value_states[:, slicing_tokens:, :kv_num_heads, :].transpose(1, 2)
+
+            past_key_value = self.past_key_values
 
         return attn_output, attn_weights, past_key_value
 
