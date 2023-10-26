@@ -471,6 +471,9 @@ class AWQConfig(QuantizationConfigMixin):
         backend (`str`, *optional*, defaults to `"autoawq"`):
             The quantization backend. Some models might be quantized using `llm-awq` backend. This is useful for users
             that quantize their own models using `llm-awq` library.
+        fusing_mapping (`Dict[str, List[str]]`, *optional*):
+            The mapping of the modules to fuse. This is useful for users that quantize their own models using
+            `llm-awq` library.
     """
 
     def __init__(
@@ -480,6 +483,7 @@ class AWQConfig(QuantizationConfigMixin):
         zero_point: bool = True,
         version: str = "GEMM",
         backend: str = "autoawq",
+        fusing_mapping: Optional[dict[str, List[str]]] = None,
         **kwargs,
     ):
         self.quant_method = QuantizationMethod.AWQ
@@ -489,6 +493,7 @@ class AWQConfig(QuantizationConfigMixin):
         self.zero_point = zero_point
         self.version = version
         self.backend = backend
+        self.fusing_mapping = fusing_mapping
 
         self.post_init()
 
@@ -504,3 +509,9 @@ class AWQConfig(QuantizationConfigMixin):
             major, minor = compute_capability
             if major < 8:
                 raise ValueError("LLM-AWQ backend is only supported on GPUs with compute capability >= 8.0")
+            
+        if self.fusing_mapping is None:
+            self.fusing_mapping = {}
+        else:
+            if set(self.fusing_mapping.keys()) != set(["attention", "mlp", "layernorm", "use_alibi", "max_seq_len", "hidden_size", "num_attention_heads", "num_key_value_heads"]):
+                raise ValueError("fused_mapping must contain both attention, mlp, layernorm, use_alibi, max_seq_len keys, num_key_value_heads, num_attention_heads and hidden_size")

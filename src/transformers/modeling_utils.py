@@ -3260,7 +3260,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             model = quantizer.convert_model(model)
             model._is_quantized_training_enabled = True
         elif quantization_method_from_config == QuantizationMethod.AWQ:
-            from .integrations import get_keys_to_not_convert, replace_with_awq_linear
+            from .integrations import get_keys_to_not_convert, replace_with_awq_linear, fuse_awq_modules
 
             modules_to_not_convert = get_keys_to_not_convert(model)
 
@@ -3470,6 +3470,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     "Generation config file not found, using a generation config created from the model config."
                 )
                 pass
+
+        if quantization_config.quant_method == QuantizationMethod.AWQ and len(quantization_config.fusing_mapping) > 0:
+            model = fuse_awq_modules(model, quantization_config)
 
         # Dispatch model with hooks on all devices if necessary
         if device_map is not None:
