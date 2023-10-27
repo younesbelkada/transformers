@@ -400,6 +400,10 @@ class GPTQConfig(QuantizationConfigMixin):
         attibutes_dict = copy.deepcopy(self.__dict__)
         loading_attibutes = ["disable_exllama", "use_exllama_v2", "use_cuda_fp16", "max_input_length"]
         loading_attibutes_dict = {i: j for i, j in attibutes_dict.items() if i in loading_attibutes}
+
+        if "disable_exllama" in attibutes_dict:
+            logger.warning("`disable_exllama` will be removed in a future release.", FutureWarning)
+
         return loading_attibutes_dict
 
     def post_init(self):
