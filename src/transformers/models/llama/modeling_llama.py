@@ -296,6 +296,8 @@ class LlamaAttention(nn.Module):
         self.k_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
         self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=config.attention_bias)
+       
+        self.is_static_kv_cache = False
         self._init_rope()
 
     def _init_rope(self):
@@ -378,9 +380,19 @@ class LlamaAttention(nn.Module):
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
         if past_key_value is not None:
-            # reuse k, v, self_attention
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            # # reuse k, v, self_attention
+            # key_states = torch.cat([past_key_value[0], key_states], dim=2)
+            # value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            if not self.is_static_kv_cache:
+                key_states = torch.cat([past_key_value[0], key_states], dim=2)
+                value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            else:
+                self.cache.update_cache(key_states, value_states)
+                key_states, value_states = self.cache.get_cache()
+
+        if self.is_static_kv_cache and self.cache.current_position == 0:
+            kv_seqlen = key_states.shape[-2]
+            self.cache.update_cache(key_states, value_states, kv_seqlen)
 
         past_key_value = (key_states, value_states) if use_cache else None
 
@@ -722,6 +734,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     config_class = LlamaConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
+    supports_static_kv_cache = True
     _no_split_modules = ["LlamaDecoderLayer"]
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
