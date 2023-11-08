@@ -379,7 +379,7 @@ class OPTPreTrainedModel(PreTrainedModel):
     config_class = OPTConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
-    support_static_kv_cache = True
+    supports_static_kv_cache = True
     _no_split_modules = ["OPTDecoderLayer"]
 
     def _init_weights(self, module):

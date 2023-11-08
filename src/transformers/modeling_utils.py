@@ -1853,7 +1853,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 module.cache = cache
 
     def reset_static_cache(self):
-        if not self.support_static_kv_cache:
+        if not self.supports_static_kv_cache:
             raise ValueError(
                 "Static cache is not supported for this model - please raise an issue on GitHub: https://github.com/huggingface/transformers"
             )
