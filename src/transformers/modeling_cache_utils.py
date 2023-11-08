@@ -30,13 +30,12 @@ class KeyValueCache:
         self.current_position = 0
 
     def update_cache(self, key_states, value_states, seq_len=1):
-        self.kv_cache[:, 0, :, self.current_position:self.current_position + seq_len] = key_states
-        self.kv_cache[:, 1, :, self.current_position:self.current_position + seq_len] = value_states
-
+        self.kv_cache[:, :, :, self.current_position:self.current_position + seq_len] = torch.cat([key_states, value_states], dim=0)
         self.current_position += seq_len
     
     def reset(self):
         self.current_position = 0
     
     def get_cache(self):
-        return self.kv_cache[:, 0, :, :self.current_position].squeeze(1), self.kv_cache[:, 1, :, :self.current_position].squeeze(1)
+        cache = self.kv_cache[:, :, :, :self.current_position]
+        return cache[:, 0].squeeze(1), cache[:, 1].squeeze(1)
