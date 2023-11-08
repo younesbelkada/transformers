@@ -40,6 +40,7 @@ from .configuration_utils import PretrainedConfig
 from .dynamic_module_utils import custom_object_save
 from .generation import GenerationConfig, GenerationMixin
 from .integrations import PeftAdapterMixin, deepspeed_config, is_deepspeed_zero3_enabled
+from .modeling_cache_utils import KeyValueCache
 from .pytorch_utils import (  # noqa: F401
     Conv1D,
     apply_chunking_to_forward,
@@ -1118,6 +1119,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
     is_parallelizable = False
     supports_gradient_checkpointing = False
+    supports_static_kv_cache = False
 
     # Flash Attention 2 support
     _supports_flash_attn_2 = False
@@ -1829,6 +1831,36 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # Tie weights should be skipped when not initializing all weights
             # since from_pretrained(...) calls tie weights anyways
             self.tie_weights()
+
+    def enable_static_cache(self, batch_size, max_seq_length, hidden_size=None, num_attention_heads=None, dtype=torch.float32):
+        if not self.support_static_kv_cache:
+            raise ValueError(
+                "Static cache is not supported for this model - please raise an issue on GitHub: https://github.com/huggingface/transformers"
+            )
+
+        for module in self.modules():
+            if hasattr(module, "is_static_kv_cache"):
+                module.is_static_kv_cache = True
+                device = next(module.parameters()).device
+
+                if hidden_size is None:
+                    hidden_size = self.config.hidden_size
+
+                if num_attention_heads is None:
+                    num_attention_heads = self.config.num_attention_heads
+
+                cache = KeyValueCache(batch_size, max_seq_length, hidden_size, num_attention_heads, device, dtype)
+                module.cache = cache
+
+    def reset_static_cache(self):
+        if not self.support_static_kv_cache:
+            raise ValueError(
+                "Static cache is not supported for this model - please raise an issue on GitHub: https://github.com/huggingface/transformers"
+            )
+
+        for module in self.modules():
+            if hasattr(module, "is_static_kv_cache") and module.is_static_kv_cache:
+                module.cache.reset()
 
     def prune_heads(self, heads_to_prune: Dict[int, List[int]]):
         """

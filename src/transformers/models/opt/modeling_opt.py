@@ -118,6 +118,8 @@ class OPTAttention(nn.Module):
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
 
+        self.is_static_kv_cache = False
+
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
@@ -153,12 +155,22 @@ class OPTAttention(nn.Module):
             # reuse k, v, self_attention
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-            key_states = torch.cat([past_key_value[0], key_states], dim=2)
-            value_states = torch.cat([past_key_value[1], value_states], dim=2)
+
+            # Use the classic kv-cache convention
+            if not self.is_static_kv_cache:
+                key_states = torch.cat([past_key_value[0], key_states], dim=2)
+                value_states = torch.cat([past_key_value[1], value_states], dim=2)
+            else:
+                self.cache.update_cache(key_states, value_states)
+                key_states, value_states = self.cache.get_cache()
         else:
             # self_attention
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
+
+            if self.is_static_kv_cache and self.cache.current_position == 0:
+                kv_seqlen = key_states.shape[-2]
+                self.cache.update_cache(key_states, value_states, kv_seqlen)
 
         if self.is_decoder:
             # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
@@ -367,6 +379,7 @@ class OPTPreTrainedModel(PreTrainedModel):
     config_class = OPTConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
+    support_static_kv_cache = True
     _no_split_modules = ["OPTDecoderLayer"]
 
     def _init_weights(self, module):
