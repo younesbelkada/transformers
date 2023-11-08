@@ -1833,7 +1833,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             self.tie_weights()
 
     def enable_static_cache(self, batch_size, max_seq_length, hidden_size=None, num_attention_heads=None, dtype=torch.float32):
-        if not self.support_static_kv_cache:
+        if not self.supports_static_kv_cache:
             raise ValueError(
                 "Static cache is not supported for this model - please raise an issue on GitHub: https://github.com/huggingface/transformers"
             )
