@@ -77,6 +77,7 @@ _import_structure = {
         "run_hp_search_wandb",
     ],
     "peft": ["PeftAdapterMixin"],
+    "transformers_plugins": ["TransformersPlugin", "replace_target_class"],
 }
 
 if TYPE_CHECKING:
@@ -140,6 +141,7 @@ if TYPE_CHECKING:
         run_hp_search_wandb,
     )
     from .peft import PeftAdapterMixin
+    from .transformers_plugins import TransformersPlugin, replace_target_class
 else:
     import sys
 

@@ -39,7 +39,7 @@ from .activations import get_activation
 from .configuration_utils import PretrainedConfig
 from .dynamic_module_utils import custom_object_save
 from .generation import GenerationConfig, GenerationMixin
-from .integrations import PeftAdapterMixin, deepspeed_config, is_deepspeed_zero3_enabled
+from .integrations import PeftAdapterMixin, deepspeed_config, is_deepspeed_zero3_enabled, TransformersPlugin
 from .pytorch_utils import (  # noqa: F401
     Conv1D,
     apply_chunking_to_forward,
@@ -2562,6 +2562,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         adapter_kwargs = kwargs.pop("adapter_kwargs", {})
         adapter_name = kwargs.pop("adapter_name", "default")
         use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
+        plugin = kwargs.pop("plugin", None)
+        plugin_config = kwargs.pop("plugin_config", None)
 
         if is_fsdp_enabled():
             low_cpu_mem_usage = True
@@ -3232,8 +3234,19 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if use_flash_attention_2:
             config = cls._check_and_enable_flash_attn_2(config, torch_dtype=torch_dtype, device_map=device_map)
 
+        if plugin is not None:
+            # TODO: add few stuffs in the init context
+            # Init a `TransformersPlugin` class
+            model_type = config.model_type
+
+            TransformersPlugin.sanity_check_plugin(plugin, model_type, revision=revision, token=token)
+            plugin = TransformersPlugin.from_remote_hub(plugin, model_type, plugin_config, revision=revision, token=token)
+
         with ContextManagers(init_contexts):
             model = cls(config, *model_args, **model_kwargs)
+
+        if plugin is not None:
+            model = plugin.process_model_pre_init(model)
 
         # make sure we use the model's config since the __init__ call might have copied it
         config = model.config
@@ -3556,6 +3569,9 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 token=token,
                 adapter_kwargs=adapter_kwargs,
             )
+
+        if plugin is not None:
+            model = plugin.process_model_post_init(model)
 
         if output_loading_info:
             if loading_info is None:
