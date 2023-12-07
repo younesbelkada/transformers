@@ -216,6 +216,23 @@ class CogVLMConfig(PretrainedConfig):
 
         self.vision_config = CogVLMVisionConfig(**vision_config)
 
+        # if isinstance(vision_config, dict):
+        #     vision_config["model_type"] = (
+        #         vision_config["model_type"] if "model_type" in vision_config else "vit"
+        #     )
+        #     self.vision_config = CONFIG_MAPPING[vision_config["model_type"]](**vision_config)
+        # elif vision_config is None:
+        #     self.vision_config = CONFIG_MAPPING["vit"](
+        #         intermediate_size=15360,
+        #         hidden_size=1792,
+        #         patch_size=14,
+        #         image_size=490,
+        #         num_hidden_layers=63,
+        #         num_heads=16,
+        #         num_positions=1226,
+        #         layer_norm_eps=1e-06
+        #     )
+
         self.vocab_size = vocab_size
         self.max_position_embeddings = max_position_embeddings
         self.hidden_size = hidden_size

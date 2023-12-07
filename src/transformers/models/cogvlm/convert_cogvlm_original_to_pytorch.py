@@ -33,8 +33,22 @@ from transformers import (
 from transformers.utils.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 
 
-original_device = "cuda:0"
-hf_device = "cuda:2"
+original_device = "cuda:2"
+hf_device = "cuda:3"
+
+KEYS_TO_MODIFY_MAPPING = {
+    "vision.transformer.layers": "vision.transformer.layer",
+}
+
+def convert_state_dict_to_hf(state_dict):
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        for key_to_modify, new_key in KEYS_TO_MODIFY_MAPPING.items():
+            if key_to_modify in key:
+                key = key.replace(key_to_modify, new_key)
+
+        new_state_dict[key] = value
+    return new_state_dict
 
 
 @torch.no_grad()
@@ -89,12 +103,19 @@ def convert_cogvlm_checkpoint(model_name, pytorch_dump_folder_path=None, push_to
     # load HF model
     # rename in_channels to num_channels for sake of consistency
     original_model.config.vision_config["num_channels"] = original_model.config.vision_config.pop("in_channels")
+    original_dict = original_model.config.to_dict()
 
-    config = CogVLMConfig(**original_model.config.to_dict())
-    model = CogVLMForCausalLM(config)
+    original_dict["vision_config"]["num_attention_heads"] = original_dict["vision_config"]["num_heads"]
+
+    config = CogVLMConfig(**original_dict)
+    with torch.device("meta"):
+        model = CogVLMForCausalLM(config)
+
+    state_dict = original_model.state_dict()
+    state_dict = convert_state_dict_to_hf(state_dict)
 
     # load state dict
-    model.load_state_dict(original_model.state_dict())
+    model.load_state_dict(state_dict, strict=True, assign=True)
     model.to(hf_device)
     model.eval()
 
@@ -128,7 +149,12 @@ def convert_cogvlm_checkpoint(model_name, pytorch_dump_folder_path=None, push_to
     for k, v in inputs.items():
         assert torch.allclose(v, original_inputs[k].to(v.device))
 
+    expected_logits = torch.FloatTensor([0.8359,  3.5781, -1.2188])
+
     with torch.no_grad():
+        logits = model(**inputs).logits[0, :3, 0]
+        assert torch.allclose(expected_logits.to(logits.device), logits, atol=1e-4, rtol=1e-4)
+
         outputs = model.generate(**inputs, **gen_kwargs)
         outputs = outputs[:, inputs["input_ids"].shape[1] :]
         generated_text = tokenizer.decode(outputs[0])
@@ -148,13 +174,13 @@ def convert_cogvlm_checkpoint(model_name, pytorch_dump_folder_path=None, push_to
     # assert torch.allclose(original_logits.to(logits.device), logits, atol=1e-4)
     # print("Looks ok!")
 
-    if pytorch_dump_folder_path is not None:
-        processor.save_pretrained(pytorch_dump_folder_path)
-        # model.save_pretrained(pytorch_dump_folder_path)
+    # if pytorch_dump_folder_path is not None:
+    #     processor.save_pretrained(pytorch_dump_folder_path)
+    #     # model.save_pretrained(pytorch_dump_folder_path)
 
-    if push_to_hub:
-        processor.push_to_hub(f"nielsr/{model_name}")
-        # model.push_to_hub(f"nielsr/{model_name}")
+    # if push_to_hub:
+    #     processor.push_to_hub(f"ybelkada/{model_name.split('/')[-1]}")
+    #     # model.push_to_hub(f"ybelkada/{model_name}")
 
 
 if __name__ == "__main__":

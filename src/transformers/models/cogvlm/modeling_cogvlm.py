@@ -24,12 +24,12 @@ from torch.nn import CrossEntropyLoss
 
 from transformers import PreTrainedModel
 from transformers.activations import ACT2FN
-from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, BaseModelOutput
 from transformers.utils.logging import get_logger
 
 from ...modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
-from .configuration_cogvlm import CogVLMConfig
+from .configuration_cogvlm import CogVLMConfig, CogVLMVisionConfig
 
 
 if TYPE_CHECKING:
@@ -195,7 +195,7 @@ class CogVLMVisionTransformerLayer(nn.Module):
         self.mlp = CogVLMVisionMLP(config)
         self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, layer_head_mask, output_attentions):
         attention_input = hidden_states
         attention_output = self.input_layernorm(self.attention(attention_input))
         hidden_states = attention_input + attention_output
@@ -205,15 +205,67 @@ class CogVLMVisionTransformerLayer(nn.Module):
         return output
 
 
-class CogVLMVisionTransformer(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.layers = nn.ModuleList([CogVLMVisionTransformerLayer(config) for _ in range(config.num_hidden_layers)])
+# class CogVLMVisionTransformer(nn.Module):
+#     def __init__(self, config):
+#         super().__init__()
+#         self.layers = nn.ModuleList([CogVLMVisionTransformerLayer(config) for _ in range(config.num_hidden_layers)])
 
-    def forward(self, hidden_states):
-        for layer_module in self.layers:
-            hidden_states = layer_module(hidden_states)
-        return hidden_states
+#     def forward(self, hidden_states):
+#         for layer_module in self.layers:
+#             hidden_states = layer_module(hidden_states)
+#         return hidden_states
+    
+
+# Copied from transformers.models.vit.modeling_vit.ViTEncoder with ViTLayer->CogVLMVisionTransformerLayer,ViT->CogVLMVision
+class CogVLMVisionTransformer(nn.Module):
+    def __init__(self, config: CogVLMVisionConfig) -> None:
+        super().__init__()
+        self.config = config
+        self.layer = nn.ModuleList([CogVLMVisionTransformerLayer(config) for _ in range(config.num_hidden_layers)])
+        self.gradient_checkpointing = False
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        head_mask: Optional[torch.Tensor] = None,
+        output_attentions: bool = False,
+        output_hidden_states: bool = False,
+        return_dict: bool = True,
+    ) -> Union[tuple, BaseModelOutput]:
+        all_hidden_states = () if output_hidden_states else None
+        all_self_attentions = () if output_attentions else None
+
+        for i, layer_module in enumerate(self.layer):
+            if output_hidden_states:
+                all_hidden_states = all_hidden_states + (hidden_states,)
+
+            layer_head_mask = head_mask[i] if head_mask is not None else None
+
+            if self.gradient_checkpointing and self.training:
+                layer_outputs = self._gradient_checkpointing_func(
+                    layer_module.__call__,
+                    hidden_states,
+                    layer_head_mask,
+                    output_attentions,
+                )
+            else:
+                layer_outputs = layer_module(hidden_states, layer_head_mask, output_attentions)
+
+            hidden_states = layer_outputs[0]
+
+            if output_attentions:
+                all_self_attentions = all_self_attentions + (layer_outputs[1],)
+
+        if output_hidden_states:
+            all_hidden_states = all_hidden_states + (hidden_states,)
+
+        if not return_dict:
+            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
+        return BaseModelOutput(
+            last_hidden_state=hidden_states,
+            hidden_states=all_hidden_states,
+            attentions=all_self_attentions,
+        )
 
 
 class CogVLMVisionGLU(nn.Module):
@@ -591,6 +643,7 @@ class CogVLMModel(CogVLMPreTrainedModel):
         self.norm = CogVLMRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.vision = CogVLMVisionModel(config)
+        # self.vision = AutoModel.from_config(config.vision_config)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
