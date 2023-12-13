@@ -546,6 +546,10 @@ _import_structure = {
         "LLAVA_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "LlavaConfig",
     ],
+    "models.cogvlm": [
+        "COGVLM_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "CogVlmConfig",
+    ],
     "models.longformer": [
         "LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP",
         "LongformerConfig",
@@ -2449,6 +2453,14 @@ else:
             "LlavaForConditionalGeneration",
             "LlavaPreTrainedModel",
             "LlavaProcessor",
+        ]
+    )
+    _import_structure["models.cogvlm"].extend(
+        [
+            "COGVLM_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "CogVlmForConditionalGeneration",
+            "CogVlmPreTrainedModel",
+           
         ]
     )
     _import_structure["models.longformer"].extend(
@@ -5202,6 +5214,10 @@ if TYPE_CHECKING:
         LLAVA_PRETRAINED_CONFIG_ARCHIVE_MAP,
         LlavaConfig,
     )
+    from .models.cogvlm import (
+        COGVLM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        CogVlmConfig,
+    )
     from .models.longformer import (
         LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP,
         LongformerConfig,
@@ -6913,6 +6929,12 @@ if TYPE_CHECKING:
             LlavaForConditionalGeneration,
             LlavaPreTrainedModel,
             LlavaProcessor,
+        )
+        from .models.cogvlm import (
+            COGVLM_PRETRAINED_MODEL_ARCHIVE_LIST,
+            CogVlmForConditionalGeneration,
+            CogVlmPreTrainedModel,
+           
         )
         from .models.longformer import (
             LONGFORMER_PRETRAINED_MODEL_ARCHIVE_LIST,

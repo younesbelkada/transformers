@@ -120,6 +120,7 @@ from . import (
     lilt,
     llama,
     llava,
+    cogvlm,
     longformer,
     longt5,
     luke,
