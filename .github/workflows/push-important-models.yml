@@ -29,10 +29,24 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         id: set-matrix
         run: |
-          for file in ${{ steps.changed-files.outputs.all_changed_files}}; do
-            model_path="${file#*models/}"
-            model_path="models/${model_path%%/*}"
-            echo "$file was changed"
-            echo "$model_path"
-          done 
-          echo "matrix=${{ steps.changed-files.outputs.all_changed_files}}" >> $GITHUB_OUTPUT
+            mapfile -t important_files < important_model_files.txt
+
+            # Initialize an empty matrix string
+            matrix_string=""
+
+            # Loop through each file in all_changed_files
+            for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+                # Extract the relevant portion of the file path
+                model_path="${file#*models/}"
+                model_path="models/${model_path%%/*}"
+
+                # Check if the extracted model path is in the list of important model paths
+                if grep -qFx "$model_path" important_model_files.txt; then
+                    echo "$file was changed"
+                    # Append the file to the matrix string
+                    matrix_string+="matrix=$file"$'\n'
+                fi
+            done
+
+            # Write the matrix string to the output file
+            echo "$matrix_string" >> $GITHUB_OUTPUT
