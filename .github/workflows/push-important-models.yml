@@ -24,7 +24,6 @@ jobs:
         uses: tj-actions/changed-files@3f54ebb830831fc121d3263c1857cfbdc310cdb9 #v42
         with:
           files: src/transformers/models/**
-          json: "true"
       - name: Run step if only the files listed above change
         if: steps.changed-files.outputs.any_changed == 'true'
         id: set-matrix
@@ -40,5 +39,4 @@ jobs:
                 fi
             done
             matrix_string=$(printf '"%s", ' "${model_arrays[@]}" | sed 's/, $//')
-            echo "Heho"
             echo "matrix=[$matrix_string]" >> $GITHUB_OUTPUT
