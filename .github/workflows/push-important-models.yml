@@ -33,10 +33,3 @@ jobs:
             echo "$file was changed"
           done 
           echo "matrix=${{ steps.changed-files.outputs.all_changed_files}}" >> $GITHUB_OUTPUT
-
-  run_all_tests_single_gpu:
-    needs: get_modified_models
-    runs-on: [self-hosted, single-gpu, nvidia-gpu, a10, push-ci]
-    container:
-      image: huggingface/transformers-all-latest-gpu
-      options: --gpus all --shm-size "40gb" -e NVIDIA_DISABLE_REQUIRE=true
