@@ -34,10 +34,11 @@ jobs:
                 model_path="${file#*models/}"
                 model_path="models/${model_path%%/*}"
                 if grep -qFx "$model_path" utils/important_models.txt; then
-                    echo "$file was changed"
+                    echo "$model_path was changed"
                     # Append the file to the matrix string
                     model_arrays+=("$model_path")
                 fi
             done
             matrix_string=$(printf '"%s", ' "${model_arrays[@]}" | sed 's/, $//')
+            echo "Heho"
             echo "matrix=[$matrix_string]" >> $GITHUB_OUTPUT
