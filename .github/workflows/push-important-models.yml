@@ -29,15 +29,15 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         id: set-matrix
         run: |
-            mapfile -t important_files < utils/important_models.txt
-            matrix_string=""
+            model_arrays=()
             for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
                 model_path="${file#*models/}"
                 model_path="models/${model_path%%/*}"
                 if grep -qFx "$model_path" utils/important_models.txt; then
                     echo "$file was changed"
                     # Append the file to the matrix string
-                    matrix_string+="matrix=$file"$'\n'
+                    model_arrays+=("$model_path")
                 fi
             done
-            echo "$matrix_string" >> $GITHUB_OUTPUT
+            matrix_string=$(printf '"%s", ' "${model_arrays[@]}" | sed 's/, $//')
+            echo "matrix=[$matrix_string]" >> $GITHUB_OUTPUT
