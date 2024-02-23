@@ -33,6 +33,6 @@ jobs:
             model_path="${file#*models/}"
             model_path="models/${model_path%%/*}"
             echo "$file was changed"
-            echo "$file"
+            echo "$model_path"
           done 
           echo "matrix=${{ steps.changed-files.outputs.all_changed_files}}" >> $GITHUB_OUTPUT
