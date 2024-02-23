@@ -29,7 +29,7 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         id: set-matrix
         run: |
-            mapfile -t important_files < important_model_files.txt
+            mapfile -t important_files < utlis/important_models.txt
 
             # Initialize an empty matrix string
             matrix_string=""
@@ -41,7 +41,7 @@ jobs:
                 model_path="models/${model_path%%/*}"
 
                 # Check if the extracted model path is in the list of important model paths
-                if grep -qFx "$model_path" important_model_files.txt; then
+                if grep -qFx "$model_path" utlis/important_models.txt; then
                     echo "$file was changed"
                     # Append the file to the matrix string
                     matrix_string+="matrix=$file"$'\n'
