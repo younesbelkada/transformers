@@ -705,7 +705,7 @@ class TrainingArguments:
         optim_target_modules (`List[str]`, *optional*):
             The target modules to optimize, i.e. the module names that you would like to train, right now this is used only for GaLore algorithm
             https://arxiv.org/abs/2403.03507
-            See: https://github.com/jiaweizzhao/GaLore for more details. You need to make sure to pass a valid GaloRe
+            See: https://github.com/jiaweizzhao/GaLore for more details. You need to make sure to pass a valid GaLore
             optimizer, e.g. one of: "galore_adamw", "galore_adamw_8bit", "galore_adafactor" and make sure that the target modules are `nn.Linear` modules
             only.
     """
