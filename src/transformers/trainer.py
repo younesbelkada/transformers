@@ -1230,7 +1230,7 @@ class Trainer:
                 raise ValueError("You need to pass a model in order to correctly initialize a GaLore optimizer.")
 
             logger.warning(
-                "Activated GaLoRE fine-tuning, depending on your model size and hardware, the training might take a while before starting. Please be patient !"
+                "Activated GaLore fine-tuning, depending on your model size and hardware, the training might take a while before starting. Please be patient !"
             )
 
             all_linear = (
@@ -1287,7 +1287,7 @@ class Trainer:
                 # See the original implementation or the nice implementation from @hiyouga
                 # here: https://github.com/hiyouga/LLaMA-Factory/commit/8664262cde3919e10eaecbd66e8c5d356856362e#diff-ebe08ab14496dfb9e06075f0fdd36799ef6d1535cc4dd4715b74c4e3e06fe3ba
                 if args.gradient_accumulation_steps != 1:
-                    raise ValueError("Layerwise GaLoRE optimizer do not support gradient accumulation !")
+                    raise ValueError("Layerwise GaLore optimizer do not support gradient accumulation !")
 
                 optimizer_dict = {}
                 for param in non_galore_params:

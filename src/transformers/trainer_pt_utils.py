@@ -1231,7 +1231,7 @@ class AcceleratorConfig:
 
 class LayerWiseDummyOptimizer(torch.optim.Optimizer):
     """
-    For Layer-wise optimizers such as GaLoRE optimizer, the optimization
+    For Layer-wise optimizers such as GaLore optimizer, the optimization
     step is already done through the post gradient hooks. Therefore
     the trick is to create a dummy optimizer that can take arbitrary
     args and kwargs and return a no-op during training.
@@ -1254,7 +1254,7 @@ class LayerWiseDummyOptimizer(torch.optim.Optimizer):
 
 class LayerWiseDummyScheduler(LRScheduler):
     """
-    For Layer-wise optimizers such as GaLoRE optimizer, the optimization and scheduling step
+    For Layer-wise optimizers such as GaLore optimizer, the optimization and scheduling step
     are already done through the post gradient hooks. Therefore
     the trick is to create a dummy scheduler that can take arbitrary
     args and kwargs and return a no-op during training.
