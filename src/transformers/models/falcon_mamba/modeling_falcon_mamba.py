@@ -130,6 +130,11 @@ class FalconMambaMixer(nn.Module):
         self.D = nn.Parameter(torch.ones(self.intermediate_size))
         self.out_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=config.use_bias)
         self.use_bias = config.use_bias
+        
+        # Triton expects to pass RMS weights even if they are non learnable, thus we need to create these weights here
+        self.register_buffer("b_c_rms", torch.nn.Parameter(torch.ones(self.ssm_state_size), requires_grad=False), persistent=False)
+        self.register_buffer("dt_rms", torch.nn.Parameter(torch.ones(self.intermediate_size), requires_grad=False), persistent=False)
+        self.rms_eps = config.mixer_rms_eps
 
         if not is_fast_path_available:
             if self.use_mambapy:
@@ -159,22 +164,26 @@ class FalconMambaMixer(nn.Module):
     ):
         # 1. Gated MLP's linear projection
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
-
+        
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
             contextualized_states = mamba_inner_fn(
                 projected_states,
-                self.conv1d.weight,
-                self.conv1d.bias if self.use_conv_bias else None,
-                self.x_proj.weight,
-                self.dt_proj.weight,
-                self.out_proj.weight,
-                self.out_proj.bias.float() if self.use_bias else None,
-                -torch.exp(self.A_log.float()),
-                None,  # input-dependent B
-                None,  # input-dependent C
-                self.D.float(),
+                conv1d_weight=self.conv1d.weight,
+                conv1d_bias=self.conv1d.bias if self.use_conv_bias else None,
+                x_proj_weight=self.x_proj.weight,
+                delta_proj_weight=self.dt_proj.weight,
+                out_proj_weight=self.out_proj.weight,
+                out_proj_bias=self.out_proj.bias.float() if self.use_bias else None,
+                A=-torch.exp(self.A_log.float()),
+                B=None,  # input-dependent B
+                C=None,  # input-dependent C
+                D=self.D.float(),
                 delta_bias=self.dt_proj.bias.float(),
                 delta_softplus=True,
+                b_rms_weight=self.b_c_rms,
+                c_rms_weight=self.b_c_rms,
+                dt_rms_weight=self.dt_rms,
+                b_c_dt_rms_eps=self.rms_eps
             )
 
         else:
@@ -214,9 +223,9 @@ class FalconMambaMixer(nn.Module):
                 ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
             )
 
-            B = rms_forward(B)
-            C = rms_forward(C)
-            time_step = rms_forward(time_step)
+            B = rms_forward(B, variance_epsilon=self.rms_eps)
+            C = rms_forward(C, variance_epsilon=self.rms_eps)
+            time_step = rms_forward(time_step, variance_epsilon=self.rms_eps)
 
             # In case the model has been quantized, we need a hack to properly call the `nn.Linear` module
             # at the price of a small overhead.
