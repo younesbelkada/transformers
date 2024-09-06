@@ -141,6 +141,7 @@ _import_structure = {
         "is_tensorboard_available",
         "is_wandb_available",
     ],
+    "kernels.falcon_mamba": [],
     "modelcard": ["ModelCard"],
     "modeling_tf_pytorch_utils": [
         "convert_tf_weight_name_to_pt_weight_name",
