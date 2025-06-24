@@ -1085,7 +1085,7 @@ class FalconH1DecoderLayer(GradientCheckpointingLayer):
         use_cache: Optional[bool] = False,
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> tuple[torch.FloatTensor, Optional[tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
         Args:
@@ -1162,6 +1162,7 @@ class FalconH1PreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = True
     _supports_cache_class = True  # Note: only supports FalconHybridMambaAttentionDynamicCache
+    _supports_attention_backend = True
     _is_stateful = True
 
     def _init_weights(self, module):
@@ -1267,7 +1268,7 @@ class FalconH1Model(FalconH1PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
-        **kwargs,  # NOOP kwargs, for now
+        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1324,6 +1325,7 @@ class FalconH1Model(FalconH1PreTrainedModel):
                 use_cache=use_cache,
                 cache_position=cache_position,
                 position_embeddings=position_embeddings,
+                **flash_attn_kwargs,
             )
 
             hidden_states = layer_outputs[0]
@@ -1357,11 +1359,19 @@ class FalconH1Model(FalconH1PreTrainedModel):
             1. Cached forward
             2. Attending to all inputs
         """
-        mamba_mask = attention_mask
-        if cache_position[0] > 0 or (attention_mask is not None and torch.all(attention_mask == 1)):
-            mamba_mask = None
-        return mamba_mask
-
+        # mamba_mask = attention_mask
+        # if attention_mask is not None:
+        #     # Create a mask that's True when all elements are 1
+        #     all_ones = (attention_mask.sum() == attention_mask.numel())
+        #     use_none_mask = (cache_position[0] > 0) | all_ones
+        # else:
+        #     use_none_mask = cache_position[0] > 0
+        
+        # if not use_none_mask:
+        #     return None
+        # else:
+        #     return mamba_mask
+        return attention_mask
     def _update_causal_mask(
         self,
         attention_mask: torch.Tensor,
