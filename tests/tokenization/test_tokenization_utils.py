@@ -352,3 +352,17 @@ class TokenizerUtilsTest(unittest.TestCase):
             new_tokenizer.decode(new_tokenizer.encode(text_with_nonspecial_tokens), skip_special_tokens=True)
             == text_with_nonspecial_tokens
         )
+
+    @require_tokenizers
+    def test_load_mistral_regex(self):
+        test_text = "there are 2 cats"
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            "mistralai/Ministral-3-3B-Instruct-2512",
+            fix_mistral_regex=True
+        )
+
+        self.assertTrue(
+            tokenizer.decode(tokenizer.encode(test_text), skip_special_tokens=True)
+            == test_text
+        )
