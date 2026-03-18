@@ -355,6 +355,7 @@ class TokenizerUtilsTest(unittest.TestCase):
 
     @require_tokenizers
     def test_load_mistral_regex(self):
+        # see: https://github.com/huggingface/transformers/pull/43376 for more details
         test_text = "there are 2 cats"
 
         tokenizer = AutoTokenizer.from_pretrained(
